@@ -1,5 +1,56 @@
-#include "../lib/catch.hpp"
+#include <iostream>
 
-TEST_CASE("First empty testcase", "[Naive, empty]"){
-    REQUIRE(true);
+#include "../lib/catch.hpp"
+#include "../../src/helper.hpp"
+#include "../../src/naive.hpp"
+
+
+TEST_CASE("First simple testcase", "[Naive, empty]"){
+    int **res;
+    int **A;
+    int **B;
+    int const m = 9;
+    int const n = 11;
+    int const p = 5;
+
+    helper::initialize_matrix(A, m, n);
+    helper::initialize_matrix(B, n, p);
+
+    unsigned a = 0;
+    for (unsigned i = 0u; i < m; i++){
+        for(unsigned j = 0u; j < n; j++){
+            A[i][j] = a;
+            a++;
+        }
+    }
+    a = 1;
+    for (unsigned i = 0u; i < n; i++){
+        for(unsigned j = 0u; j < p; j++){
+            B[i][j] = a;
+            a++;
+        }
+    }
+    matmul::naive::multiply((const int **) A, (const int **) B, m, n, p, res);
+
+    int result[m][p] = {
+        { 1980, 2035, 2090, 2145, 2200},
+        { 5126, 5302, 5478, 5654, 5830},
+        { 8272, 8569, 8866, 9163, 9460},
+        {11418,11836,12254,12672,13090},
+        {14564,15103,15642,16181,16720},
+        {17710,18370,19030,19690,20350},
+        {20856,21637,22418,23199,23980},
+        {24002,24904,25806,26708,27610},
+        {27148,28171,29194,30217,31240}
+    };
+
+    for (unsigned i = 0; i < m; ++i) {
+        for(unsigned j = 0; j < p; j++){
+            REQUIRE(result[i][j] == res[i][j]);
+        }
+    }
+
+    helper::destroy_matrix(A, m);
+    helper::destroy_matrix(B, n);
+    helper::destroy_matrix(res, m);
 }
