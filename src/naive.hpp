@@ -26,7 +26,6 @@ namespace matmul {
          * @param destination
          */
         void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **&destination){
-            //TODO
             if(m == 0 || n == 0 || p == 0){
                 destination = nullptr;
                 return;

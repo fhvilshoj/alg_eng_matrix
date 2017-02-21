@@ -1,3 +1,5 @@
+#ifndef ALG_HELPER_HPP
+#define ALG_HELPER_HPP
 
 namespace helper {
 
@@ -31,6 +33,6 @@ namespace helper {
         }
         std::cout << "---------------" << std::endl;
     }
-
-
 }
+
+#endif

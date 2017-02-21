@@ -9,8 +9,8 @@
 
 int main(int argc, char **argv){
     std::cout << "Lets benchmark!" << std::endl;
-    
-    std::cout << "Multiplied" << std::endl;
-    return 0;
 
+
+
+    return 0;
 }
