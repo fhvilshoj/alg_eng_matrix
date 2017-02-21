@@ -17,7 +17,7 @@ namespace matmul {
                 {}
                 void dispose()
                 {
-                    helper::destroy_matrix(M, m);
+                    helper::matrix::destroy_matrix(M, m);
                     m = 0;
                     n = 0;
                 }
@@ -36,21 +36,21 @@ namespace matmul {
                 }
                 else if(m >= std::max(n, p)){
                     // case 1
-                    unsigned split = m / 2;
-                    unsigned rest = m - split;
+                    const unsigned split = m / 2;
+                    const unsigned rest = m - split;
                     multiply(A, B, split, n, p, dest, doffset, aoffset, boffset);
                     multiply(A + split, B, rest, n, p, dest + split, doffset, aoffset, boffset);
                 } else if(n >= std::max(m, p)){
                     //case 2
-                    unsigned split = n / 2;
-                    unsigned rest = n - split;
+                    const unsigned split = n / 2;
+                    const unsigned rest = n - split;
                     multiply(A, B, m, split, p, dest, doffset, aoffset, boffset);
                     multiply(A, B + split, m, rest, p, dest, doffset, aoffset + split, boffset);
 
                 } else {
                     //case 3
-                    unsigned split = p / 2;
-                    unsigned rest = p - split;
+                    const unsigned split = p / 2;
+                    const unsigned rest = p - split;
                     multiply(A, B, m, n, split, dest, doffset, aoffset, boffset);
                     multiply(A, B, m, n, rest, dest, doffset + split, aoffset, boffset + split);
                 }
@@ -81,7 +81,6 @@ namespace matmul {
             _impl::multiply(A, B, m, n, p, destination);
         }
     }
-
 }
 
 #endif

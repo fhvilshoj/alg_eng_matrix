@@ -15,8 +15,8 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     int const n = 11;
     int const p = 5;
 
-    helper::initialize_matrix(A, m, n);
-    helper::initialize_matrix(B, n, p);
+    helper::matrix::initialize_matrix(A, m, n);
+    helper::matrix::initialize_matrix(B, n, p);
 
     unsigned a = 0;
     for (unsigned i = 0u; i < m; i++){
@@ -54,8 +54,8 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
         }
     }
 
-    helper::destroy_matrix(A, m);
-    helper::destroy_matrix(B, n);
-    helper::destroy_matrix(resA, m);
-    helper::destroy_matrix(resB, m);
+    helper::matrix::destroy_matrix(A, m);
+    helper::matrix::destroy_matrix(B, n);
+    helper::matrix::destroy_matrix(resA, m);
+    helper::matrix::destroy_matrix(resB, m);
 }
