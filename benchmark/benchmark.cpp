@@ -3,6 +3,8 @@
 #include<string>
 #include <cstring>
 
+#include "papi.h"
+
 #include "../src/naive.hpp"
 #include "../src/oblivious.hpp"
 #include "../src/oblivious_s.hpp"
@@ -102,7 +104,7 @@ bool parse_arguments(int argc, char **argv);
 
 bool validate_arguments();
 
-void run_isolated_test(std::string const &dataset);
+long long run_isolated_test(std::string const &dataset);
 
 void run_test(std::string const &dataset, FILE *f);
 
@@ -122,8 +124,11 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (chosen) {
-        for (auto const &file : files)
-            run_isolated_test(file);
+        for (auto const &file : files){
+            long long cnt = run_isolated_test(file);
+            std::cout << cnt << std::endl;
+        }
+
     } else {
         FILE *f = fopen((output + ".data").c_str(), "w");
         for (auto const &a : algorithms) {
@@ -288,14 +293,17 @@ bool validate_arguments() {
     return true;
 }
 
-void run_isolated_test(std::string const &dataset) {
+long long run_isolated_test(std::string const &dataset) {
     FILE *fq = fopen(dataset.c_str(), "r");
     helper::file_handler::layout_file matrices{fq};
     fclose(fq);
     if (!matrices.valid) {
         fprintf(stderr, "Matrix file of %s is invalid.\n", dataset.c_str());
-        return;
+        return 0u;
     }
+    long long counters[] = {0u};
+    int cnts[] = {PAPI_BR_MSP};
+
     algorithm_profile::multiply_delegate mult = chosen->multiply;
     int **dest;
     for (unsigned i = refresh_count; i; --i) {
@@ -303,11 +311,16 @@ void run_isolated_test(std::string const &dataset) {
              matrices.layout_p, dest, chosen->option);
         helper::matrix::destroy_matrix(dest);
     }
+
     for (unsigned i = iteration_count; i; --i) {
+        PAPI_start_counters(cnts, 1);
         mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
              matrices.layout_p, dest, chosen->option);
+        PAPI_accum_counters(counters, 1);
+        PAPI_stop_counters(NULL, 0);
         helper::matrix::destroy_matrix(dest);
     }
+    return (counters[0] / iteration_count);
 }
 
 void run_test(std::string const &dataset, FILE *f) {
@@ -340,7 +353,7 @@ void run_test(std::string const &dataset, FILE *f) {
         fprintf(f, "%f ", t);
         printf("%.0f\t", t);
     }
-    fprintf(f, "%d %d %d\n", matrices.layout_m, matrices.layout_n, matrices.layout_p);
+    fprintf(f, " %d %d %d\n", matrices.layout_m, matrices.layout_n, matrices.layout_p);
     fflush(f);
     puts(dataset.c_str());
 }
@@ -357,7 +370,7 @@ void call_gnuplot() {
                 "set title 'Time per multiplication (2^x * 2^x$)'\n"
                 "set key left top\n"
                 "plot for [col=1:%d] '%s.data' using %d:col with linespoints\n",
-            output.c_str(), algo_count, output.c_str(), algo_count + 1, algo_count + 1);
+            output.c_str(), algo_count, output.c_str(), algo_count + 1);
     fclose(fplot);
     int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
     if (gnuplot_ret)
