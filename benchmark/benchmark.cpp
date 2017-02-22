@@ -341,6 +341,7 @@ void run_test(std::string const &dataset, FILE *f) {
         printf("%.0f\t", t);
     }
     fprintf(f, "%d %d %d\n", matrices.layout_m, matrices.layout_n, matrices.layout_p);
+    fflush(f);
     puts(dataset.c_str());
 }
 
@@ -353,10 +354,10 @@ void call_gnuplot() {
                 "set ylabel 'cycles / multiplication' rotate by 90\n"
                 "set xlabel 'log(dimension)'\n"
                 "set key autotitle columnhead\n"
-                "set title 'Time per multiplication $2^x \times 2^x$'\n"
+                "set title 'Time per multiplication (2^x * 2^x$)'\n"
                 "set key left top\n"
-                "plot for [col=1:%d] '%s.data' using ($1/n):col with linespoints\n",
-            output.c_str(), algo_count, output.c_str());
+                "plot for [col=1:%d] '%s.data' using %d:col with linespoints\n",
+            output.c_str(), algo_count, output.c_str(), algo_count + 1, algo_count + 1);
     fclose(fplot);
     int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
     if (gnuplot_ret)
