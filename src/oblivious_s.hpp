@@ -11,8 +11,8 @@ namespace matmul {
 
             void multiply_naive(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest, unsigned const doffset, unsigned const aoffset, unsigned const boffset){
                 for(unsigned i = 0u; i < m; i++){
-                    for(unsigned j = 0u; j < n; j++){
-                        for(unsigned k = 0u; k < p; k++){
+                    for(unsigned j = 0u; j < p; j++){
+                        for(unsigned k = 0u; k < n; k++){
                             dest[i][doffset + j] += A[i][aoffset + k] * B[k][boffset + j];
                         }
                     }
