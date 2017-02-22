@@ -9,9 +9,11 @@ namespace helper {
 
     namespace matrix {
         void initialize_matrix(int **&M, unsigned const m, unsigned const n){
+            int *tmp = (int *) std::calloc(m * n, sizeof(int));
             M = (int **) std::calloc(m, sizeof(int*));
             for(unsigned i = 0; i < m; i++){
-                M[i] = (int*) std::calloc(n, sizeof(int));
+                M[i] = tmp;
+                tmp += n;
             }
         }
 
@@ -20,11 +22,13 @@ namespace helper {
          * @param M
          * @param m
          */
-        void destroy_matrix(int **&M, unsigned m){
-            for(unsigned i = 0; i < m; i++){
-                std::free(M[i]);
+        void destroy_matrix(int **&M){
+            if(M){
+                if(M[0]){
+                    std::free(M[0]);
+                }
+                std::free(M);
             }
-            std::free(M);
             M = nullptr;
         }
 
@@ -76,8 +80,8 @@ namespace helper {
             void dispose()
             {
                 valid = false;
-                matrix::destroy_matrix(layoutA, layout_m);
-                matrix::destroy_matrix(layoutB, layout_n);
+                matrix::destroy_matrix(layoutA);
+                matrix::destroy_matrix(layoutB);
                 layout_m = 0u;
                 layout_n = 0u;
                 layout_p = 0u;
@@ -134,7 +138,7 @@ namespace helper {
                     }
                 }
                 for (unsigned i = 0; i < n; ++i) {
-                    for (unsigned j = 0; j < m; ++j) {
+                    for (unsigned j = 0; j < p; ++j) {
                         std::fprintf(f, "%d\n", layoutB[i][j]);
                     }
                 }

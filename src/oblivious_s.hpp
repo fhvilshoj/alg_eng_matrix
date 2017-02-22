@@ -1,20 +1,32 @@
-#ifndef ALG_OBLIVIOUS
-#define ALG_OBLIVIOUS
+#ifndef ALG_OBLIVIOUS_S
+#define ALG_OBLIVIOUS_S
 
 #include "helper.hpp"
 
 namespace matmul {
 
-    namespace oblivious {
+    namespace oblivious_s {
 
         namespace _impl {
+
+            void multiply_naive(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest, unsigned const doffset, unsigned const aoffset, unsigned const boffset){
+                for(unsigned i = 0u; i < m; i++){
+                    for(unsigned j = 0u; j < n; j++){
+                        for(unsigned k = 0u; k < p; k++){
+                            dest[i][doffset + j] += A[i][aoffset + k] * B[k][boffset + j];
+                        }
+                    }
+                }
+            }
+
             void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest, unsigned const doffset = 0, unsigned const aoffset = 0, unsigned const boffset = 0){
                 if(m == 0 || n == 0 || p == 0){
                     return;
                 }
 //                std::cout << "A topleft: " << A[0][0] << " B top left: " << B[0][0] << " m " << m << " n " << n << " p " << p << " doff: " << doffset << " aoff " << aoffset << " boff " << boffset << std::endl;
-                if(m == 1 && n == 1 && p == 1){
-                    dest[0][doffset + 0] += A[0][aoffset + 0] * B[0][boffset + 0];
+                const unsigned max = std::max(m, std::max(n, p));
+                if(max < 10){
+                    multiply_naive(A, B, m, n, p, dest, doffset, aoffset, boffset);
                 }
                 else if(m >= std::max(n, p)){
                     // case 1

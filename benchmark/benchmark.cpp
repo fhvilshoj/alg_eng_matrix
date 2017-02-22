@@ -5,6 +5,7 @@
 
 #include "../src/naive.hpp"
 #include "../src/oblivious.hpp"
+#include "../src/oblivious_s.hpp"
 #include "../src/helper.hpp"
 
 #ifdef __GNUC__
@@ -83,7 +84,8 @@ struct algorithm_profile
 } algorithms[] =
     {
         { "naive", matmul::naive::multiply},
-        { "oblivious", matmul::oblivious::multiply}
+        { "obl", matmul::oblivious::multiply},
+        { "obl:s", matmul::oblivious_s::multiply}
     };
 
 algorithm_profile const *chosen;
@@ -125,7 +127,7 @@ int main(int argc, char **argv){
             fputc(' ', f);
             printf("%s\t", a.name);
         }
-        fputs("N\n", f);
+        fputs("m n p\n", f);
         puts("dataset\n");
         for (auto const &file : files)
             run_test(file, f);
@@ -324,11 +326,11 @@ void run_isolated_test(std::string const &dataset)
     int **dest;
     for (unsigned i = refresh_count; i; --i){
         mult((int const **)matrices.layoutA, (int const **)matrices.layoutB, matrices.layout_m, matrices.layout_n, matrices.layout_p, dest);
-        helper::matrix::destroy_matrix(dest, matrices.layout_m);
+        helper::matrix::destroy_matrix(dest);
     }
     for (unsigned i = iteration_count; i; --i){
         mult((int const **)matrices.layoutA, (int const **)matrices.layoutB, matrices.layout_m, matrices.layout_n, matrices.layout_p, dest);
-        helper::matrix::destroy_matrix(dest, matrices.layout_m);
+        helper::matrix::destroy_matrix(dest);
     }
 }
 
@@ -351,18 +353,19 @@ void run_test(std::string const &dataset, FILE *f)
         algorithm_profile::multiply_delegate mult = a.multiply;
         for (unsigned i = refresh_count; i; --i){
             mult((int const **)matrices.layoutA, (int const **)matrices.layoutB, matrices.layout_m, matrices.layout_n, matrices.layout_p, dest);
-            helper::matrix::destroy_matrix(dest, matrices.layout_m);
+            helper::matrix::destroy_matrix(dest);
         }
         auto start_tick = clocking::ticks();
         for (unsigned i = iteration_count; i; --i){
             mult((int const **)matrices.layoutA, (int const **)matrices.layoutB, matrices.layout_m, matrices.layout_n, matrices.layout_p, dest);
-            helper::matrix::destroy_matrix(dest, matrices.layout_m);
+            helper::matrix::destroy_matrix(dest);
         }
         auto end_tick = clocking::ticks();
         double t = (end_tick - start_tick) / (double)iteration_count;
         fprintf(f, "%f ", t);
         printf("%.0f\t", t);
     }
+    fprintf(f, "%d %d %d\n", matrices.layout_m, matrices.layout_n, matrices.layout_p);
     puts(dataset.c_str());
 }
 

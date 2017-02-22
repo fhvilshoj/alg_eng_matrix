@@ -79,8 +79,8 @@ int main(int argc, char **argv)
     helper::file_handler::layout_file::save(f, layoutA, layoutB, m, n, p);
     fclose(f);
 
-    helper::matrix::destroy_matrix(layoutA, m);
-    helper::matrix::destroy_matrix(layoutB, n);
+    helper::matrix::destroy_matrix(layoutA);
+    helper::matrix::destroy_matrix(layoutB);
 
     return 0;
 }

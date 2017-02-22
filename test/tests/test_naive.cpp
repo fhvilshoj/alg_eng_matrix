@@ -9,6 +9,7 @@
 TEST_CASE("First simple testcase", "[Naive, empty]"){
     int **resA;
     int **resB;
+    int **resBs;
     int **A;
     int **B;
     int const m = 9;
@@ -34,6 +35,7 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     }
     matmul::naive::multiply((const int **) A, (const int **) B, m, n, p, resA);
     matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resB);
+    matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resBs);
 
     int result[m][p] = {
         { 1980, 2035, 2090, 2145, 2200},
@@ -51,11 +53,13 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
         for(unsigned j = 0; j < p; j++){
             REQUIRE(result[i][j] == resA[i][j]);
             REQUIRE(resA[i][j] == resB[i][j]);
+            REQUIRE(resB[i][j] == resBs[i][j]);
         }
     }
 
-    helper::matrix::destroy_matrix(A, m);
-    helper::matrix::destroy_matrix(B, n);
-    helper::matrix::destroy_matrix(resA, m);
-    helper::matrix::destroy_matrix(resB, m);
+    helper::matrix::destroy_matrix(A);
+    helper::matrix::destroy_matrix(B);
+    helper::matrix::destroy_matrix(resA);
+    helper::matrix::destroy_matrix(resB);
+    helper::matrix::destroy_matrix(resBs);
 }
