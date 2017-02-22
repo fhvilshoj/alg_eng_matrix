@@ -33,9 +33,9 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
             a++;
         }
     }
-    matmul::naive::multiply((const int **) A, (const int **) B, m, n, p, resA);
-    matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resB);
-    matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resBs);
+    matmul::naive::multiply((const int **) A, (const int **) B, m, n, p, resA, 0);
+    matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resB, 0);
+    matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resBs, 10);
 
     int result[m][p] = {
         { 1980, 2035, 2090, 2145, 2200},

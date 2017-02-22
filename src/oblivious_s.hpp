@@ -19,34 +19,31 @@ namespace matmul {
                 }
             }
 
-            void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest, unsigned const doffset = 0, unsigned const aoffset = 0, unsigned const boffset = 0){
-                if(m == 0 || n == 0 || p == 0){
-                    return;
-                }
-//                std::cout << "A topleft: " << A[0][0] << " B top left: " << B[0][0] << " m " << m << " n " << n << " p " << p << " doff: " << doffset << " aoff " << aoffset << " boff " << boffset << std::endl;
+            void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest, unsigned const option, unsigned const doffset = 0, unsigned const aoffset = 0, unsigned const boffset = 0){
                 const unsigned max = std::max(m, std::max(n, p));
-                if(max < 10){
+                if(max < option){
                     multiply_naive(A, B, m, n, p, dest, doffset, aoffset, boffset);
-                }
-                else if(m >= std::max(n, p)){
+                } else if(m == 1u && n == 1u && p == 1u){
+                    dest[0][doffset] += A[0][aoffset] + B[0][boffset];
+                } else if(m >= std::max(n, p)){
                     // case 1
                     const unsigned split = m / 2;
                     const unsigned rest = m - split;
-                    multiply(A, B, split, n, p, dest, doffset, aoffset, boffset);
-                    multiply(A + split, B, rest, n, p, dest + split, doffset, aoffset, boffset);
+                    multiply(A, B, split, n, p, dest, option, doffset, aoffset, boffset);
+                    multiply(A + split, B, rest, n, p, dest + split, option, doffset, aoffset, boffset);
                 } else if(n >= std::max(m, p)){
                     //case 2
                     const unsigned split = n / 2;
                     const unsigned rest = n - split;
-                    multiply(A, B, m, split, p, dest, doffset, aoffset, boffset);
-                    multiply(A, B + split, m, rest, p, dest, doffset, aoffset + split, boffset);
+                    multiply(A, B, m, split, p, dest, option, doffset, aoffset, boffset);
+                    multiply(A, B + split, m, rest, p, dest, option, doffset, aoffset + split, boffset);
 
                 } else {
                     //case 3
                     const unsigned split = p / 2;
                     const unsigned rest = p - split;
-                    multiply(A, B, m, n, split, dest, doffset, aoffset, boffset);
-                    multiply(A, B, m, n, rest, dest, doffset + split, aoffset, boffset + split);
+                    multiply(A, B, m, n, split, dest, option, doffset, aoffset, boffset);
+                    multiply(A, B, m, n, rest, dest, option, doffset + split, aoffset, boffset + split);
                 }
             }
         }
@@ -62,7 +59,7 @@ namespace matmul {
          * @param p
          * @param destination
          */
-        void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **&destination){
+        void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **&destination, unsigned const option){
             if(m == 0 || n == 0 || p == 0){
                 destination = nullptr;
                 return;
@@ -72,7 +69,7 @@ namespace matmul {
             for(unsigned i = 0u; i < m; i++){
                 destination[i] = (int*)std::calloc(p, sizeof(int));
             }
-            _impl::multiply(A, B, m, n, p, destination);
+            _impl::multiply(A, B, m, n, p, destination, option);
         }
     }
 }

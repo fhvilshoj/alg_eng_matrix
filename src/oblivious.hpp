@@ -50,7 +50,7 @@ namespace matmul {
          * @param p
          * @param destination
          */
-        void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **&destination){
+        void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **&destination, unsigned const option){
             if(m == 0 || n == 0 || p == 0){
                 destination = nullptr;
                 return;

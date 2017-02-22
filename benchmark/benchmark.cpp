@@ -78,16 +78,20 @@ unsigned iteration_count;
 
 struct algorithm_profile {
     typedef void (*multiply_delegate)(int const **A, int const **B, unsigned const m, unsigned const n,
-                                      unsigned const p, int **&destination);
-
+                                      unsigned const p, int **&destination, unsigned const option);
     char const *name;
     multiply_delegate multiply;
+    unsigned const option;
 
 } algorithms[] =
     {
-        {"naive", matmul::naive::multiply},
-        {"obl",   matmul::oblivious::multiply},
-        {"obl:s", matmul::oblivious_s::multiply}
+        {"obl:1280", matmul::oblivious_s::multiply, 1280},
+        {"obl:640", matmul::oblivious_s::multiply, 640},
+        {"obl:160", matmul::oblivious_s::multiply, 160},
+        {"obl:40", matmul::oblivious_s::multiply, 40},
+        {"obl:10", matmul::oblivious_s::multiply, 10},
+        {"obl:1",   matmul::oblivious::multiply, 0},
+        {"naive", matmul::naive::multiply, 0}
     };
 
 algorithm_profile const *chosen;
@@ -296,12 +300,12 @@ void run_isolated_test(std::string const &dataset) {
     int **dest;
     for (unsigned i = refresh_count; i; --i) {
         mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest);
+             matrices.layout_p, dest, chosen->option);
         helper::matrix::destroy_matrix(dest);
     }
     for (unsigned i = iteration_count; i; --i) {
         mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest);
+             matrices.layout_p, dest, chosen->option);
         helper::matrix::destroy_matrix(dest);
     }
 }
@@ -322,13 +326,13 @@ void run_test(std::string const &dataset, FILE *f) {
         algorithm_profile::multiply_delegate mult = a.multiply;
         for (unsigned i = refresh_count; i; --i) {
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-                 matrices.layout_p, dest);
+                 matrices.layout_p, dest, a.option);
             helper::matrix::destroy_matrix(dest);
         }
         auto start_tick = clocking::ticks();
         for (unsigned i = iteration_count; i; --i) {
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-                 matrices.layout_p, dest);
+                 matrices.layout_p, dest, a.option);
             helper::matrix::destroy_matrix(dest);
         }
         auto end_tick = clocking::ticks();
@@ -346,13 +350,13 @@ void call_gnuplot() {
     fprintf(fplot,
             "set term png\n"
                 "set output '%s.png'\n"
-                "set ylabel 'cycles / query' rotate by 90\n"
-                "set xlabel 'log(#[elements])'\n"
+                "set ylabel 'cycles / multiplication' rotate by 90\n"
+                "set xlabel 'log(dimension)'\n"
                 "set key autotitle columnhead\n"
-                "set title 'Time per query to Pred(x)'\n"
+                "set title 'Time per multiplication $2^x \times 2^x$'\n"
                 "set key left top\n"
-                "plot for [col=1:%d] '%s.data' using %d:col with lines\n",
-            output.c_str(), algo_count, output.c_str(), algo_count + 1);
+                "plot for [col=1:%d] '%s.data' using ($1/n):col with linespoints\n",
+            output.c_str(), algo_count, output.c_str());
     fclose(fplot);
     int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
     if (gnuplot_ret)
