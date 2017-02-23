@@ -27,7 +27,6 @@ file(GLOB TEST_FILES
 
 ADD_LIBRARY(papi STATIC IMPORTED)
 SET_TARGET_PROPERTIES(papi PROPERTIES IMPORTED_LOCATION /usr/local/lib/libpapi.a)
-#TARGET_LINK_LIBRARIES(mytarget A boost_unit_test_framework C)
 
 message(${SOURCE_FILES})
 add_library(CORE ${SOURCE_FILES})
