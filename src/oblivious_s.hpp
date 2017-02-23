@@ -64,11 +64,6 @@ namespace matmul {
                 destination = nullptr;
                 return;
             }
-
-            destination =  (int **)std::calloc(m, sizeof(int*));
-            for(unsigned i = 0u; i < m; i++){
-                destination[i] = (int*)std::calloc(p, sizeof(int));
-            }
             _impl::multiply(A, B, m, n, p, destination, option);
         }
     }

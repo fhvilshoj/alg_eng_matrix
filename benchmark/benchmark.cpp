@@ -1,6 +1,5 @@
 #include<cstdlib>
 #include<iostream>
-#include<string>
 #include <cstring>
 
 #include "papi.h"
@@ -98,13 +97,32 @@ struct algorithm_profile {
 
 algorithm_profile const *chosen;
 
-void print_usage();
+struct hardware_counter {
+    int counter;
+    std::string description;
+    std::string short_description;
+};
 
+hardware_counter hdw_counters[] = {
+    {PAPI_L1_TCM , "Level 1 total cache misses", "L1_TCM"}
+    ,{PAPI_L2_TCM , "Level 2 total cache misses", "L2_TCM"}
+    ,{PAPI_L3_TCM , "Level 3 total cache misses", "L3_TCM"}
+    ,{PAPI_TOT_CYC, "Total cycles executed", "TOT_CYC"}
+    ,{PAPI_BR_CN  , "Conditional branch instructions executed", "BR_CN"}
+    ,{PAPI_BR_MSP , "Conditional branch instructions mispred", "BR_MSP"}
+};
+
+//PAPI_EINVAL
+
+int hdw_counters_cnt = sizeof(hdw_counters) / sizeof(hdw_counters[0]);
+
+void print_usage();
+void print_meassures();
 bool parse_arguments(int argc, char **argv);
 
 bool validate_arguments();
 
-long long run_isolated_test(std::string const &dataset);
+void run_isolated_test(std::string const &dataset);
 
 void run_test(std::string const &dataset, FILE *f);
 
@@ -124,11 +142,10 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (chosen) {
+        print_meassures();
         for (auto const &file : files){
-            long long cnt = run_isolated_test(file);
-            std::cout << cnt << std::endl;
+            run_isolated_test(file);
         }
-
     } else {
         FILE *f = fopen((output + ".data").c_str(), "w");
         for (auto const &a : algorithms) {
@@ -160,6 +177,12 @@ void print_usage() {
         fprintf(stderr, "(%s) %s\n    %s\n", a.abbreviation, a.name, a.description);
 }
 
+void print_meassures(){
+    for(int i = 0; i < hdw_counters_cnt; i++){
+        std::cout << hdw_counters[i].short_description << " ";
+    }
+    std::cout << "filename" << std::endl;
+}
 
 bool parse_uint(char const *str, unsigned &result) {
     if (!str)
@@ -293,34 +316,68 @@ bool validate_arguments() {
     return true;
 }
 
-long long run_isolated_test(std::string const &dataset) {
+void run_isolated_test(std::string const &dataset) {
     FILE *fq = fopen(dataset.c_str(), "r");
     helper::file_handler::layout_file matrices{fq};
     fclose(fq);
     if (!matrices.valid) {
         fprintf(stderr, "Matrix file of %s is invalid.\n", dataset.c_str());
-        return 0u;
+        return;
     }
-    long long counters[] = {0u};
-    int cnts[] = {PAPI_BR_MSP};
+    long long counters[hdw_counters_cnt] = {};
+    long long stoppers[hdw_counters_cnt] = {};
+
+    int cnts[hdw_counters_cnt];
+    for(int i = 0; i < hdw_counters_cnt; i++){
+        cnts[i] = hdw_counters[i].counter;
+    }
 
     algorithm_profile::multiply_delegate mult = chosen->multiply;
     int **dest;
+    helper::matrix::initialize_matrix(dest, matrices.layout_m, matrices.layout_p);
     for (unsigned i = refresh_count; i; --i) {
+        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
         mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
              matrices.layout_p, dest, chosen->option);
-        helper::matrix::destroy_matrix(dest);
     }
 
     for (unsigned i = iteration_count; i; --i) {
-        PAPI_start_counters(cnts, 1);
+        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
+        int start_counters_res = PAPI_start_counters(cnts, 3);
+        if (start_counters_res != PAPI_OK)
+            std::cout << "Couldn't start counters"<< start_counters_res << std::endl;
+
         mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
              matrices.layout_p, dest, chosen->option);
-        PAPI_accum_counters(counters, 1);
-        PAPI_stop_counters(NULL, 0);
-        helper::matrix::destroy_matrix(dest);
+        int accum_counters_res = PAPI_accum_counters(counters, 3);
+        if (accum_counters_res != PAPI_OK)
+            std::cout << "Couldn't accumulate counters"<< accum_counters_res << std::endl;
+        int stop_counters_res = PAPI_stop_counters(stoppers, 3);
+        if (stop_counters_res != PAPI_OK)
+            std::cout << "Couldn't stop counters" << stop_counters_res << std::endl;
     }
-    return (counters[0] / iteration_count);
+    for (unsigned i = iteration_count; i; --i) {
+        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
+        int start_counters_res = PAPI_start_counters(cnts + 3, 3);
+        if (start_counters_res != PAPI_OK)
+            std::cout << "Couldn't start counters"<< start_counters_res << std::endl;
+
+        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
+             matrices.layout_p, dest, chosen->option);
+        int accum_counters_res = PAPI_accum_counters(counters + 3, 3);
+        if (accum_counters_res != PAPI_OK)
+            std::cout << "Couldn't accumulate counters"<< accum_counters_res << std::endl;
+        int stop_counters_res = PAPI_stop_counters(stoppers, 3);
+        if (stop_counters_res != PAPI_OK)
+            std::cout << "Couldn't stop counters" << stop_counters_res << std::endl;
+    }
+    helper::matrix::destroy_matrix(dest);
+//    PAPI_EINVAL
+    // Print counter values
+    for(int i = 0; i < 6; i++){
+        std::cout << counters[i]/iteration_count << " ";
+    }
+    std::cout << dataset << std::endl;
 }
 
 void run_test(std::string const &dataset, FILE *f) {
@@ -337,18 +394,20 @@ void run_test(std::string const &dataset, FILE *f) {
     std::string last_layout;
     for (auto const &a : algorithms) {
         algorithm_profile::multiply_delegate mult = a.multiply;
+        helper::matrix::initialize_matrix(dest, matrices.layout_m, matrices.layout_p);
         for (unsigned i = refresh_count; i; --i) {
+            std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
                  matrices.layout_p, dest, a.option);
-            helper::matrix::destroy_matrix(dest);
         }
         auto start_tick = clocking::ticks();
         for (unsigned i = iteration_count; i; --i) {
+            std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
                  matrices.layout_p, dest, a.option);
-            helper::matrix::destroy_matrix(dest);
         }
         auto end_tick = clocking::ticks();
+        helper::matrix::destroy_matrix(dest);
         double t = (end_tick - start_tick) / (double) iteration_count;
         fprintf(f, "%f ", t);
         printf("%.0f\t", t);

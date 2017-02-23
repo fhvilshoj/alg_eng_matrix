@@ -19,6 +19,10 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     helper::matrix::initialize_matrix(A, m, n);
     helper::matrix::initialize_matrix(B, n, p);
 
+    helper::matrix::initialize_matrix(resA, m, p);
+    helper::matrix::initialize_matrix(resB, m, p);
+    helper::matrix::initialize_matrix(resBs, m, p);
+
     unsigned a = 0;
     for (unsigned i = 0u; i < m; i++){
         for(unsigned j = 0u; j < n; j++){
