@@ -1,5 +1,6 @@
 #include<cstdlib>
 #include<cstring>
+#include<ctime>
 #include<iostream>
 #include<fstream>
 
@@ -8,6 +9,7 @@
 #include "../src/naive.hpp"
 #include "../src/oblivious.hpp"
 #include "../src/oblivious_s.hpp"
+#include "../src/oblivious_cores.hpp"
 #include "../src/helper.hpp"
 
 #ifdef __GNUC__
@@ -81,6 +83,7 @@ unsigned iteration_count;
 struct algorithm_profile {
     typedef void (*multiply_delegate)(int const **A, int const **B, unsigned const m, unsigned const n,
                                       unsigned const p, int **&destination, unsigned const option);
+
     char const *name;
     multiply_delegate multiply;
     unsigned const option;
@@ -88,13 +91,26 @@ struct algorithm_profile {
 
 } algorithms[] =
     {
-        {"obl:1280", matmul::oblivious_s::multiply, 1280, "1280"},
-        {"obl:640", matmul::oblivious_s::multiply, 640, "640"},
-        {"obl:160", matmul::oblivious_s::multiply, 160, "160"},
-        {"obl:40", matmul::oblivious_s::multiply, 40, "40"},
-        {"obl:10", matmul::oblivious_s::multiply, 10, "10"},
-        {"obl:1",   matmul::oblivious::multiply, 0, "0"},
-        {"naive", matmul::naive::multiply, 0, "nai"}
+        /*{"obl:1280", matmul::oblivious_s::multiply, 1280, "1280"},
+            {"obl:640", matmul::oblivious_s::multiply, 640, "640"},
+            {"obl:160", matmul::oblivious_s::multiply, 160, "160"},
+            {"obl:40", matmul::oblivious_s::multiply, 40, "40"},
+            {"obl:10", matmul::oblivious_s::multiply, 10, "10"},
+            {"obl:2",   matmul::oblivious::multiply, 2, "2"}
+            {"obl:1",   matmul::oblivious::multiply, 0, "0"},
+            */
+    { "obl_c:16", matmul::oblivious_c::multiply, 16, "16" },
+    { "obl_c:8", matmul::oblivious_c::multiply, 8, "8" },
+    { "obl_c:4", matmul::oblivious_c::multiply, 4, "4" },
+    { "obl_c:2", matmul::oblivious_c::multiply, 2, "2" },
+    { "obl_c:1", matmul::oblivious_c::multiply, 1, "1" },
+    { "naive:1", matmul::naive::multiply, 1, "nai1" }
+        /*,
+    { "naive:2", matmul::naive::multiply, 2, "nai2" },
+    { "naive:4", matmul::naive::multiply, 4, "nai4" },
+    { "naive:8", matmul::naive::multiply, 8, "nai8" },
+    { "naive:16", matmul::naive::multiply, 16, "nai16" },
+    { "naive:32", matmul::naive::multiply, 16, "nai32" },*/
     };
 
 algorithm_profile const *chosen;
@@ -106,21 +122,25 @@ struct hardware_counter {
 };
 
 hardware_counter hdw_counters[] = {
-    {PAPI_L1_TCM , "Level 1 total cache misses", "L1_TCM"}
-    ,{PAPI_L2_TCM , "Level 2 total cache misses", "L2_TCM"}
-    ,{PAPI_L3_TCM , "Level 3 total cache misses", "L3_TCM"}
-    ,{PAPI_TOT_CYC, "Total cycles executed", "TOT_CYC"}
-    ,{PAPI_BR_CN  , "Conditional branch instructions executed", "BR_CN"}
-    ,{PAPI_BR_MSP , "Conditional branch instructions mispred", "BR_MSP"}
+    {PAPI_L1_TCM,  "Level 1 total cache misses",                "L1_TCM"},
+    {PAPI_L2_TCM,  "Level 2 total cache misses",                "L2_TCM"},
+    {PAPI_L3_TCM,  "Level 3 total cache misses",                "L3_TCM"},
+    {PAPI_TOT_CYC, "Total cycles executed",                     "TOT_CYC"},
+    {PAPI_BR_CN,   "Conditional branch instructions executed",  "BR_CN"},
+    {PAPI_BR_MSP,  "Conditional branch instructions mispred",   "BR_MSP"},
+    {PAPI_TLB_TL,  "Total translation lookaside buffer misses", "TLB_TL"},
 };
 
 //PAPI_EINVAL
 
 int hdw_counters_cnt = sizeof(hdw_counters) / sizeof(hdw_counters[0]);
 
-std::string file_name_for_algorithm(algorithm_profile algorithm);
+std::string file_name_for_algorithm(algorithm_profile algorithm, std::string ending = ".data");
+
 void print_usage();
+
 void print_meassures();
+
 bool parse_arguments(int argc, char **argv);
 
 bool validate_arguments();
@@ -129,7 +149,7 @@ void run_isolated_test(std::string const &dataset);
 
 void run_test(std::string const &dataset);
 
-void call_gnuplot();
+void call_gnuplot(algorithm_profile algorithm);
 
 int main(int argc, char **argv) {
     std::cout << "Lets benchmark!" << std::endl;
@@ -146,16 +166,16 @@ int main(int argc, char **argv) {
     }
     if (chosen) {
         print_meassures();
-        for (auto const &file : files){
+        for (auto const &file : files) {
             run_isolated_test(file);
         }
     } else {
         std::string header = "";
-        for(unsigned i = 0; i < hdw_counters_cnt; i++){
+        for (unsigned i = 0; i < hdw_counters_cnt; i++) {
             header += hdw_counters[i].short_description + " ";
         }
-        header += "m";
-        for (auto const a : algorithms){
+        header += "Time m";
+        for (auto const a : algorithms) {
             std::ofstream result_file;
             result_file.open(file_name_for_algorithm(a));
             result_file << header << std::endl;
@@ -163,12 +183,15 @@ int main(int argc, char **argv) {
         }
         for (auto const &file : files)
             run_test(file);
+        for (auto const a : algorithms) {
+            call_gnuplot(a);
+        }
     }
     return 0;
 }
 
-std::string file_name_for_algorithm(algorithm_profile algorithm){
-    return output + "_" + algorithm.short_name + ".data";
+std::string file_name_for_algorithm(algorithm_profile algorithm, std::string ending) {
+    return output + "_" + algorithm.short_name + ending;
 }
 
 void print_usage() {
@@ -185,8 +208,8 @@ void print_usage() {
         fprintf(stderr, "(%s) %s\n    %s\n", a.abbreviation, a.name, a.description);
 }
 
-void print_meassures(){
-    for(int i = 0; i < hdw_counters_cnt; i++){
+void print_meassures() {
+    for (int i = 0; i < hdw_counters_cnt; i++) {
         std::cout << hdw_counters[i].short_description << " ";
     }
     std::cout << "filename" << std::endl;
@@ -336,7 +359,7 @@ void run_isolated_test(std::string const &dataset) {
     long long stoppers[hdw_counters_cnt] = {};
 
     int cnts[hdw_counters_cnt];
-    for(int i = 0; i < hdw_counters_cnt; i++){
+    for (int i = 0; i < hdw_counters_cnt; i++) {
         cnts[i] = hdw_counters[i].counter;
     }
 
@@ -354,7 +377,7 @@ void run_isolated_test(std::string const &dataset) {
 
         int start_counters_res = PAPI_start_counters(cnts, 3);
         if (start_counters_res != PAPI_OK)
-            std::cout << "Couldn't start counters"<< start_counters_res << std::endl;
+            std::cout << "Couldn't start counters" << start_counters_res << std::endl;
 
         //Actual calculation
         mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
@@ -390,8 +413,8 @@ void run_isolated_test(std::string const &dataset) {
     helper::matrix::destroy_matrix(dest);
 
     // Print counter values
-    for(int i = 0; i < 6; i++){
-        std::cout << counters[i]/iteration_count << " ";
+    for (int i = 0; i < 6; i++) {
+        std::cout << counters[i] / iteration_count << " ";
     }
     std::cout << dataset << std::endl;
 }
@@ -417,7 +440,7 @@ void run_test(std::string const &dataset) {
         long long stoppers[3] = {};
 
         int events[hdw_counters_cnt];
-        for(int i = 0; i < hdw_counters_cnt; i++){
+        for (int i = 0; i < hdw_counters_cnt; i++) {
             events[i] = hdw_counters[i].counter;
         }
 
@@ -429,21 +452,24 @@ void run_test(std::string const &dataset) {
         for (unsigned i = iteration_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
             int signal = PAPI_start_counters(events, 3);
-            if(signal != PAPI_OK)
+            if (signal != PAPI_OK)
                 std::cerr << "Failed to start counters with code " << signal << " in file " << dataset << std::endl;
 
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
                  matrices.layout_p, dest, a.option);
 
             signal = PAPI_accum_counters(counts, 3);
-            if(signal != PAPI_OK)
-                std::cerr << "Failed to accumulate counters with code " << signal << " in file " << dataset << std::endl;
+            if (signal != PAPI_OK)
+                std::cerr << "Failed to accumulate counters with code " << signal << " in file " << dataset
+                          << std::endl;
             signal = PAPI_stop_counters(stoppers, 3);
-            if(signal != PAPI_OK)
+            if (signal != PAPI_OK)
                 std::cerr << "Failed to stop counters with code " << signal << " in file " << dataset << std::endl;
         }
+        double acc_time = 0;
         for (unsigned i = iteration_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
+            clock_t begin = clock();
             int signal = PAPI_start_counters(events + 3, 3);
             if (signal != PAPI_OK)
                 std::cerr << "Failed to start counters with code " << signal << " in file " << dataset << std::endl;
@@ -458,34 +484,39 @@ void run_test(std::string const &dataset) {
             signal = PAPI_stop_counters(stoppers, 3);
             if (signal != PAPI_OK)
                 std::cerr << "Failed to stop counters with code " << signal << " in file " << dataset << std::endl;
+            clock_t end = clock();
+            acc_time += double(end - begin) / CLOCKS_PER_SEC;
         }
 
+        acc_time /= iteration_count;
         std::ofstream result_file;
         result_file.open(file_name_for_algorithm(a), std::ios::app);
-        for (unsigned i = 0u; i < hdw_counters_cnt; i++){
+        for (unsigned i = 0u; i < hdw_counters_cnt; i++) {
             result_file << counts[i] / iteration_count << " ";
             std::cout << counts[i] / iteration_count << " ";
         }
-        result_file << matrices.layout_m << std::endl;
+        result_file << acc_time << " " << matrices.layout_m << std::endl;
         result_file.close();
-        std::cout << matrices.layout_m << " " << a.name << std::endl;
+        std::cout << acc_time << " " << matrices.layout_m << " " << a.name << std::endl;
     }
     helper::matrix::destroy_matrix(dest);
 }
 
-void call_gnuplot() {
+void call_gnuplot(algorithm_profile algorithm) {
     constexpr unsigned algo_count = sizeof(algorithms) / sizeof(algorithms[0]);
+    std::string input_name = file_name_for_algorithm(algorithm);
+    std::string output_name = file_name_for_algorithm(algorithm, ".png");
     FILE *fplot = fopen((output + ".gnuplot").c_str(), "w");
     fprintf(fplot,
             "set term png\n"
-                "set output '%s.png'\n"
-                "set ylabel 'cycles / multiplication' rotate by 90\n"
-                "set xlabel 'log(dimension)'\n"
+                "set output '%s'\n"
+                "set ylabel 'counts' rotate by 90\n"
+                "set xlabel 'size of square matrix'\n"
                 "set key autotitle columnhead\n"
-                "set title 'Time per multiplication (2^x * 2^x$)'\n"
+                "set title 'Counts per multiplication'\n"
                 "set key left top\n"
-                "plot for [col=1:%d] '%s.data' using %d:col with linespoints\n",
-            output.c_str(), algo_count, output.c_str(), algo_count + 1);
+                "plot for [col=1:%d] '%s' using %d:col with linespoints\n",
+            output_name.c_str(), hdw_counters_cnt, input_name.c_str(), hdw_counters_cnt + 1);
     fclose(fplot);
     int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
     if (gnuplot_ret)

@@ -4,12 +4,15 @@
 #include "../../src/helper.hpp"
 #include "../../src/naive.hpp"
 #include "../../src/oblivious.hpp"
+#include "../../src/oblivious_s.hpp"
+#include "../../src/oblivious_cores.hpp"
 
 
 TEST_CASE("First simple testcase", "[Naive, empty]"){
     int **resA;
     int **resB;
     int **resBs;
+    int **resBc;
     int **A;
     int **B;
     int const m = 9;
@@ -22,6 +25,7 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     helper::matrix::initialize_matrix(resA, m, p);
     helper::matrix::initialize_matrix(resB, m, p);
     helper::matrix::initialize_matrix(resBs, m, p);
+    helper::matrix::initialize_matrix(resBc, m, p);
 
     unsigned a = 0;
     for (unsigned i = 0u; i < m; i++){
@@ -39,7 +43,8 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     }
     matmul::naive::multiply((const int **) A, (const int **) B, m, n, p, resA, 0);
     matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resB, 0);
-    matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resBs, 10);
+    matmul::oblivious_s::multiply((const int **) A, (const int **) B, m, n, p, resBs, 10);
+    matmul::oblivious_c::multiply((const int **) A, (const int **) B, m, n, p, resBc, 8);
 
     int result[m][p] = {
         { 1980, 2035, 2090, 2145, 2200},
@@ -58,6 +63,7 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
             REQUIRE(result[i][j] == resA[i][j]);
             REQUIRE(resA[i][j] == resB[i][j]);
             REQUIRE(resB[i][j] == resBs[i][j]);
+            REQUIRE(resBs[i][j] == resBc[i][j]);
         }
     }
 
@@ -66,4 +72,5 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     helper::matrix::destroy_matrix(resA);
     helper::matrix::destroy_matrix(resB);
     helper::matrix::destroy_matrix(resBs);
+    helper::matrix::destroy_matrix(resBc);
 }
