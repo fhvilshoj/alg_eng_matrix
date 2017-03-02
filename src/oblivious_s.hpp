@@ -48,6 +48,16 @@ namespace matmul {
             }
         }
 
+        /**
+         * Empty
+         * @param A 
+         * @param B 
+         * @param m 
+         * @param n 
+         * @param p 
+         */
+        void build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
+        }
 
         /***
          * Multiplys matrix A of size (m x n) with matrix B of size (n x p)

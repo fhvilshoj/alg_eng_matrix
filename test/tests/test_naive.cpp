@@ -6,6 +6,7 @@
 #include "../../src/oblivious.hpp"
 #include "../../src/oblivious_s.hpp"
 #include "../../src/oblivious_cores.hpp"
+#include "../../src/naive_flip.hpp"
 
 
 TEST_CASE("First simple testcase", "[Naive, empty]"){
@@ -13,6 +14,7 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     int **resB;
     int **resBs;
     int **resBc;
+    int **resNaiveFlip;
     int **A;
     int **B;
     int const m = 9;
@@ -26,6 +28,7 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     helper::matrix::initialize_matrix(resB, m, p);
     helper::matrix::initialize_matrix(resBs, m, p);
     helper::matrix::initialize_matrix(resBc, m, p);
+    helper::matrix::initialize_matrix(resNaiveFlip, m, p);
 
     unsigned a = 0;
     for (unsigned i = 0u; i < m; i++){
@@ -45,7 +48,10 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resB, 0);
     matmul::oblivious_s::multiply((const int **) A, (const int **) B, m, n, p, resBs, 10);
     matmul::oblivious_c::multiply((const int **) A, (const int **) B, m, n, p, resBc, 8);
-
+    
+    matmul::naive_flip::build(A, B, m, n, p);
+    matmul::naive_flip::multiply((const int **) A, (const int **) B, m, n, p, resNaiveFlip, 0);
+        
     int result[m][p] = {
         { 1980, 2035, 2090, 2145, 2200},
         { 5126, 5302, 5478, 5654, 5830},
@@ -64,6 +70,7 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
             REQUIRE(resA[i][j] == resB[i][j]);
             REQUIRE(resB[i][j] == resBs[i][j]);
             REQUIRE(resBs[i][j] == resBc[i][j]);
+            REQUIRE(resBs[i][j] == resNaiveFlip[i][j]);
         }
     }
 

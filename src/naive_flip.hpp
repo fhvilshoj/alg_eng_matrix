@@ -1,18 +1,17 @@
-#ifndef ALG_NAIVE
-#define ALG_NAIVE
+#ifndef ALG_NAIVE_FLIP
+#define ALG_NAIVE_FLIP
 
-#include "omp.h"
+#include "helper.hpp"
 
 namespace matmul {
 
-    namespace naive {
+    namespace naive_flip {
         namespace _impl {
             void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest){
-//                #pragma omp parallel for
                 for (unsigned i = 0u; i < m; i++){
                     for(unsigned j = 0u; j < p; j++){
                         for(unsigned k = 0u; k < n; k++){
-                            dest[i][j] += A[i][k] * B[k][j];
+                            dest[i][j] += A[i][k] * B[j][k];
                         }
                     }
                 }
@@ -20,7 +19,7 @@ namespace matmul {
         }
 
         /**
-         * Empty
+         * Transposes B to obtain less cache faults
          * @param A
          * @param B
          * @param m
@@ -28,7 +27,19 @@ namespace matmul {
          * @param p
          */
         void build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
+            int **newB;
+            helper::matrix::initialize_matrix(newB, p, n);
+
+            for(unsigned i = 0; i < p; i ++){
+                for(unsigned j = 0; j < n; j++){
+                    newB[i][j] = B[j][i];
+                }
+            }
+            int **oldB = B;
+            B = newB;
+            helper::matrix::destroy_matrix(oldB);
         }
+
 
         /***
          * Multiplys matrix A of size (m x n) with matrix B of size (n x p)
@@ -44,9 +55,6 @@ namespace matmul {
             if(m == 0 || n == 0 || p == 0){
                 destination = nullptr;
                 return;
-            }
-            if(option){
-                omp_set_num_threads(option);
             }
             _impl::multiply(A, B, m, n, p, destination);
         }

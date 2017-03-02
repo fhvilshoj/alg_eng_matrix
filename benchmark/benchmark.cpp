@@ -11,6 +11,7 @@
 #include "../src/oblivious_s.hpp"
 #include "../src/oblivious_cores.hpp"
 #include "../src/helper.hpp"
+#include "../src/naive_flip.hpp"
 
 #ifdef __GNUC__
 
@@ -83,34 +84,37 @@ unsigned iteration_count;
 struct algorithm_profile {
     typedef void (*multiply_delegate)(int const **A, int const **B, unsigned const m, unsigned const n,
                                       unsigned const p, int **&destination, unsigned const option);
-
+    typedef void (*build_delegate)(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p);
     char const *name;
     multiply_delegate multiply;
+    build_delegate build;
     unsigned const option;
     std::string short_name;
+    bool mutates_input;
 
 } algorithms[] =
     {
-        /*{"obl:1280", matmul::oblivious_s::multiply, 1280, "1280"},
-            {"obl:640", matmul::oblivious_s::multiply, 640, "640"},
-            {"obl:160", matmul::oblivious_s::multiply, 160, "160"},
-            {"obl:40", matmul::oblivious_s::multiply, 40, "40"},
-            {"obl:10", matmul::oblivious_s::multiply, 10, "10"},
-            {"obl:2",   matmul::oblivious::multiply, 2, "2"}
-            {"obl:1",   matmul::oblivious::multiply, 0, "0"},
+        /*{"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
+            {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
+            {"obl:160", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 160, "160", false},
+            {"obl:40", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 40, "40", false},
+            {"obl:10", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 10, "10", false},
+            {"obl:2",   matmul::oblivious::multiply, matmul::oblivious::build, 2, "2", false}
+            {"obl:1",   matmul::oblivious::multiply, matmul::oblivious::build, 0, "0", false},
             */
-    { "obl_c:16", matmul::oblivious_c::multiply, 16, "16" },
-    { "obl_c:8", matmul::oblivious_c::multiply, 8, "8" },
-    { "obl_c:4", matmul::oblivious_c::multiply, 4, "4" },
-    { "obl_c:2", matmul::oblivious_c::multiply, 2, "2" },
-    { "obl_c:1", matmul::oblivious_c::multiply, 1, "1" },
-    { "naive:1", matmul::naive::multiply, 1, "nai1" }
+/*    { "obl_c:16", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 16, "16" , false},
+    { "obl_c:8", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 8, "8" , false},
+    { "obl_c:4", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 4, "4" , false},
+    { "obl_c:2", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 2, "2" , false},
+    { "obl_c:1", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 1, "1" , false},*/
+    { "naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1" , false},
+    { "naive:fl", matmul::naive_flip::multiply, matmul::naive_flip::build, 0, "nai.fl" , true}
         /*,
-    { "naive:2", matmul::naive::multiply, 2, "nai2" },
-    { "naive:4", matmul::naive::multiply, 4, "nai4" },
-    { "naive:8", matmul::naive::multiply, 8, "nai8" },
-    { "naive:16", matmul::naive::multiply, 16, "nai16" },
-    { "naive:32", matmul::naive::multiply, 16, "nai32" },*/
+    { "naive:2", matmul::naive::multiply, matmul::naive::build, 2, "nai2" , false},
+    { "naive:4", matmul::naive::multiply, matmul::naive::build, 4, "nai4" , false},
+    { "naive:8", matmul::naive::multiply, matmul::naive::build, 8, "nai8" , false},
+    { "naive:16", matmul::naive::multiply, matmul::naive::build, 16, "nai16" , false},
+    { "naive:32", matmul::naive::multiply, matmul::naive::build, 16, "nai32" , false},*/
     };
 
 algorithm_profile const *chosen;
@@ -420,6 +424,8 @@ void run_isolated_test(std::string const &dataset) {
 }
 
 void run_test(std::string const &dataset) {
+    std::cout << std::endl << dataset << std::endl;
+
     FILE *fq = fopen(dataset.c_str(), "r");
     helper::file_handler::layout_file matrices{fq};
     fclose(fq);
@@ -429,20 +435,24 @@ void run_test(std::string const &dataset) {
         puts(dataset.c_str());
         return;
     }
-    std::cout << std::endl << dataset << std::endl;
+
     int **dest;
+    int events[hdw_counters_cnt];
+    for (int i = 0; i < hdw_counters_cnt; i++) {
+        events[i] = hdw_counters[i].counter;
+    }
 
     helper::matrix::initialize_matrix(dest, matrices.layout_m, matrices.layout_p);
     for (auto const &a : algorithms) {
+
+        algorithm_profile::build_delegate build = a.build;
+        build(matrices.layoutA, matrices.layoutB, matrices.layout_m, matrices.layout_n, matrices.layout_p);
+
         algorithm_profile::multiply_delegate mult = a.multiply;
 
         long long counts[hdw_counters_cnt] = {};
         long long stoppers[3] = {};
 
-        int events[hdw_counters_cnt];
-        for (int i = 0; i < hdw_counters_cnt; i++) {
-            events[i] = hdw_counters[i].counter;
-        }
 
         for (unsigned i = refresh_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
