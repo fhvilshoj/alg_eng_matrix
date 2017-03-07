@@ -1,11 +1,11 @@
-#ifndef ALG_OBLIVIOUS_CORES
-#define ALG_OBLIVIOUS_CORES
+#ifndef ALG_OBLIVIOUS_S_FLIP
+#define ALG_OBLIVIOUS_S_FLIP
 
 #include "helper.hpp"
 
 namespace matmul {
 
-    namespace oblivious_c {
+    namespace oblivious_s_flip {
 
         namespace _impl {
 
@@ -13,7 +13,7 @@ namespace matmul {
                 for(unsigned i = 0u; i < m; i++){
                     for(unsigned j = 0u; j < p; j++){
                         for(unsigned k = 0u; k < n; k++){
-                            dest[i][doffset + j] += A[i][aoffset + k] * B[k][boffset + j];
+                            dest[i][doffset + j] += A[i][aoffset + k] * B[j][boffset + k];
                         }
                     }
                 }
@@ -23,53 +23,30 @@ namespace matmul {
                 const unsigned max = std::max(m, std::max(n, p));
                 if(max < option){
                     multiply_naive(A, B, m, n, p, dest, doffset, aoffset, boffset);
-                } else if(m == 1 && n == 1 && p == 1){
-                    dest[0][doffset + 0] += A[0][aoffset + 0] * B[0][boffset + 0];
-                }
-                else if(m >= std::max(n, p)){
+                } else if(m >= std::max(n, p)){
                     // case 1
                     const unsigned split = m / 2;
                     const unsigned rest = m - split;
-                    if(option > 1){
-#pragma omp parallel
-                        {
-#pragma omp single nowait
-                            multiply(A + split, B, rest, n, p, dest + split, option >> 1, doffset, aoffset, boffset);
-#pragma omp single nowait
-                            multiply(A, B, split, n, p, dest, option >> 1, doffset, aoffset, boffset);
-                        }
-                    } else {
-                        multiply(A, B, split, n, p, dest, option, doffset, aoffset, boffset);
-                        multiply(A + split, B, rest, n, p, dest + split, option, doffset, aoffset, boffset);
-                    }
+                    multiply(A, B, split, n, p, dest, option, doffset, aoffset, boffset);
+                    multiply(A + split, B, rest, n, p, dest + split, option, doffset, aoffset, boffset);
                 } else if(n >= std::max(m, p)){
                     //case 2
                     const unsigned split = n / 2;
                     const unsigned rest = n - split;
                     multiply(A, B, m, split, p, dest, option, doffset, aoffset, boffset);
-                    multiply(A, B + split, m, rest, p, dest, option, doffset, aoffset + split, boffset);
+                    multiply(A, B, m, rest, p, dest, option, doffset, aoffset + split, boffset + split);
                 } else {
                     //case 3
                     const unsigned split = p / 2;
                     const unsigned rest = p - split;
-                    if(option > 1){
-#pragma omp parallel
-                        {
-#pragma omp single nowait
-                            multiply(A, B, m, n, split, dest, option >> 1, doffset, aoffset, boffset);
-#pragma omp single nowait
-                            multiply(A, B, m, n, rest, dest, option >> 1, doffset + split, aoffset, boffset + split);
-                        }
-                    } else {
-                        multiply(A, B, m, n, split, dest, option, doffset, aoffset, boffset);
-                        multiply(A, B, m, n, rest, dest, option, doffset + split, aoffset, boffset + split);
-                    }
+                    multiply(A, B, m, n, split, dest, option, doffset, aoffset, boffset);
+                    multiply(A, B + split, m, n, rest, dest, option, doffset + split, aoffset, boffset);
                 }
             }
         }
 
         /**
-         * Empty
+         * Transposes B to obtain less cache faults
          * @param A
          * @param B
          * @param m
@@ -77,7 +54,18 @@ namespace matmul {
          * @param p
          */
         bool build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
-            return false;
+            int **newB;
+            helper::matrix::initialize_matrix(newB, p, n);
+
+            for(unsigned i = 0; i < p; i ++){
+                for(unsigned j = 0; j < n; j++){
+                    newB[i][j] = B[j][i];
+                }
+            }
+            int **oldB = B;
+            B = newB;
+            helper::matrix::destroy_matrix(oldB);
+            return true;
         }
 
         /***
@@ -95,9 +83,6 @@ namespace matmul {
                 destination = nullptr;
                 return;
             }
-            omp_set_num_threads(option);
-            omp_set_nested(1);
-            omp_set_dynamic(0);
             _impl::multiply(A, B, m, n, p, destination, option);
         }
     }

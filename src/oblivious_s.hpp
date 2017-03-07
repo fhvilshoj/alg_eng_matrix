@@ -50,13 +50,14 @@ namespace matmul {
 
         /**
          * Empty
-         * @param A 
-         * @param B 
-         * @param m 
-         * @param n 
-         * @param p 
+         * @param A
+         * @param B
+         * @param m
+         * @param n
+         * @param p
          */
-        void build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
+        bool build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
+            return false;
         }
 
         /***

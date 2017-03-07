@@ -26,7 +26,7 @@ namespace matmul {
          * @param n
          * @param p
          */
-        void build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
+        bool build(int **&A, int **&B, unsigned const m, unsigned const n, unsigned const p){
             int **newB;
             helper::matrix::initialize_matrix(newB, p, n);
 
@@ -38,6 +38,7 @@ namespace matmul {
             int **oldB = B;
             B = newB;
             helper::matrix::destroy_matrix(oldB);
+            return true;
         }
 
 
