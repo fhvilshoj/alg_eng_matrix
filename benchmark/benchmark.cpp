@@ -138,13 +138,13 @@ struct hardware_counter {
 };
 
 hardware_counter hdw_counters[] = {
+    {PAPI_TLB_TL,  "Total translation lookaside buffer misses", "TLB_TL"},
     {PAPI_L1_TCM,  "Level 1 total cache misses",                "L1_TCM"},
     {PAPI_L2_TCM,  "Level 2 total cache misses",                "L2_TCM"},
     {PAPI_L3_TCM,  "Level 3 total cache misses",                "L3_TCM"},
     {PAPI_TOT_CYC, "Total cycles executed",                     "TOT_CYC"},
     {PAPI_BR_CN,   "Conditional branch instructions executed",  "BR_CN"},
-    {PAPI_BR_MSP,  "Conditional branch instructions mispred",   "BR_MSP"},
-    {PAPI_TLB_TL,  "Total translation lookaside buffer misses", "TLB_TL"},
+//    {PAPI_BR_MSP,  "Conditional branch instructions mispred",   "BR_MSP"},
 };
 
 //PAPI_EINVAL

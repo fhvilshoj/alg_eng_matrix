@@ -25,11 +25,14 @@ file(GLOB TEST_FILES
         "test/lib/catch.hpp"
         "test/tests/*.cpp")
 
+file(GLOB PCM
+        "../pcm/*.o")
+
 ADD_LIBRARY(papi STATIC IMPORTED)
 SET_TARGET_PROPERTIES(papi PROPERTIES IMPORTED_LOCATION /usr/local/lib/libpapi.a)
 
 message(${SOURCE_FILES})
-add_library(CORE ${SOURCE_FILES})
+add_library(CORE ${SOURCE_FILES} ${PCM})
 
 add_executable(main ${SOURCE_FILES})
 set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outdir})
@@ -42,6 +45,10 @@ target_link_libraries(testing CORE)
 add_executable(benchmark "benchmark/benchmark.cpp")
 set_target_properties(benchmark PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outdir})
 target_link_libraries(benchmark CORE papi)
+
+add_executable(benchmark2 "benchmark/benchmark2.cpp")
+set_target_properties(benchmark2 PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outdir})
+target_link_libraries(benchmark2 CORE papi)
 
 add_executable(datagen "datagen/datagen.cpp")
 set_target_properties(datagen PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outdir})

@@ -14,6 +14,7 @@
 #include "../src/helper.hpp"
 #include "../src/naive_flip.hpp"
 #include "../src/oblivious_s_flip.hpp"
+#include "../../pcm/types.h"
 
 #ifdef __GNUC__
 
@@ -69,6 +70,7 @@ struct argument {
         {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {0u}},
         {"algorithm",  "a", "Sets the only algorithm to run. This is for isolated tests.",                                                 0u, 1u,   argument::string, {}, {},         {}},
         {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {1000u}},
+        {"core",       "c", "Sets the execution core index",                                                                               0u, 4u,   argument::number, {}, {},         {4u}},
     };
 
 constexpr int ARG_INPUT = 0;
@@ -76,12 +78,13 @@ constexpr int ARG_OUTPUT = 1;
 constexpr int ARG_REFRESH = 2;
 constexpr int ARG_ALGORITHM = 3;
 constexpr int ARG_ITERATIONS = 4;
+constexpr int ARG_CORE = 5;
 
 std::vector<std::string> files;
 std::string output;
 unsigned refresh_count;
 unsigned iteration_count;
-
+unsigned core;
 
 struct algorithm_profile {
     typedef void (*multiply_delegate)(int const **A, int const **B, unsigned const m, unsigned const n,
@@ -95,17 +98,18 @@ struct algorithm_profile {
     unsigned const option;
     std::string short_name;
     bool mutates_input;
+    unsigned max_input;
 
 } algorithms[] =
     {
 //        {"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
 //        {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
-//        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false},
-//        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "160",         false},
-        {"naive:1",     matmul::naive::multiply,            matmul::naive::build,            0,    "nai1",        false}
-//        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true},
+        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false, 200}, // 1500
+        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "obl.160",         false, 25000},
+        {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
+        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true, 25000},
 //        {"obl:fl:512",  matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 512,  "obl.fl.512",  true},
-//        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true},
+        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true, 25000},
 //        {"obl:fl:2048", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 2048, "obl.fl.2048", true}
 //            {"obl:40", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 40, "40", false},
 //            {"obl:10", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 10, "10", false},
@@ -132,40 +136,39 @@ struct algorithm_profile {
 
 algorithm_profile const *chosen;
 
-struct hardware_counter {
-    int counter;
-    std::string description;
+struct pcm_hardware_counter {
+    uint64 umask;
+    uint64 event_select;
     std::string short_description;
+    std::string description;
 };
-
-hardware_counter hdw_counters[] = {
-//    {PAPI_TLB_TL,  "Total translation lookaside buffer misses", "TLB_TL"},
-    {PAPI_L1_TCM,  "Level 1 total cache misses",                "L1_TCM"},
-    {PAPI_L2_TCM,  "Level 2 total cache misses",                "L2_TCM"},
-    {PAPI_L3_TCM,  "Level 3 total cache misses",                "L3_TCM"},
-    {PAPI_TOT_CYC, "Total cycles executed",                     "TOT_CYC"},
-    {PAPI_BR_MSP,  "Conditional branch instructions mispred",   "BR_MSP"},
+pcm_hardware_counter pcm_hdw_counters[] = {
+    {0x08, 0xD1,            "L1_MISS",       "Retired load uops misses in L1 cache as data sources."},
+    {0x10, 0xD1,            "L2_MISS",       "Miss in mid-level (L2) cache. Excludes Unknown data-source."},
+    {0x01, 0x08,            "TLB_LM",       "DTLB_LOAD_MISSES.MISS_CAUSES_A_WALK:Load misses in all DTLB levels that cause page walks"},
+//    {0x02, 0x08,            "TLB_DLM",      "Demand load Miss in all translation lookaside buffer (TLB) levels causes a page walk that completes (4K)."},
+//    {0x10, 0x49,            "TLB_LCY",      "DTLB_STORE_MISSES.WALK_DURATION:Cycles when PMH is busy with page walks"},
+//    {0x20, 0x49,            "TLB_L2C_4k",   "DTLB_STORE_MISSES.STLB_HIT_4K:Store misses that miss the  DTLB and hit the STLB (4K)."},
+//    {0x40, 0x49,            "TLB_L2C_2m",   "DTLB_STORE_MISSES.STLB_HIT_2M:Store misses that miss the  DTLB and hit the STLB (2M)."},
 };
 
 //PAPI_EINVAL
-
-int hdw_counters_cnt = sizeof(hdw_counters) / sizeof(hdw_counters[0]);
+int pcm_cnt = sizeof(pcm_hdw_counters) / sizeof(pcm_hdw_counters[0]);
+uint32 pcm_in_use = (uint32) std::min(pcm_cnt, 4);
 
 std::string file_name_for_algorithm(algorithm_profile algorithm, std::string ending = ".data");
 
 void print_usage();
 
-void print_meassures();
-
 bool parse_arguments(int argc, char **argv);
 
 bool validate_arguments();
 
-void run_isolated_test(std::string const &dataset);
-
-void run_test(std::string const &dataset);
+void run_test(std::string const &dataset, PCM *m);
 
 void call_gnuplot(algorithm_profile algorithm);
+
+EventSelectRegister regs[4];
 
 int main(int argc, char **argv) {
     std::cout << "Lets benchmark!" << std::endl;
@@ -180,36 +183,73 @@ int main(int argc, char **argv) {
     if (!validate_arguments()) {
         return 2;
     }
-    if (chosen) {
-        print_meassures();
-        for (auto const &file : files) {
-            run_isolated_test(file);
-        }
-    } else {
-        std::string header = "";
-        for (unsigned i = 0; i < hdw_counters_cnt; i++) {
-            header += hdw_counters[i].short_description + " ";
-        }
-        header += "Time m";
-        for (auto const a : algorithms) {
-            std::ofstream result_file;
-            result_file.open(file_name_for_algorithm(a));
-            result_file << header << std::endl;
-            result_file.close();
-        }
-        PCM * m = PCM::getInstance();
-        PCM::ErrorCode returnResult = m->program();
-        if (returnResult != PCM::Success){
-            std::cerr << "Intel's PCM couldn't start" << std::endl;
-            std::cerr << "Error code: " << returnResult << std::endl;
-            exit(1);
-        }
-        for (auto const &file : files)
-            run_test(file);
-        for (auto const a : algorithms) {
-            call_gnuplot(a);
-        }
+
+    std::string header = "";
+    for (unsigned i = 0; i < pcm_in_use; i++) {
+        header += pcm_hdw_counters[i].short_description + " ";
     }
+    header += "Build_T Mult_T Total_T l2_SYS_MISS l3_SYS_MISS m";
+    for (auto const a : algorithms) {
+        std::ofstream result_file;
+        result_file.open(file_name_for_algorithm(a));
+        result_file << header << std::endl;
+        result_file.close();
+    }
+
+    EventSelectRegister def_event_select_reg;
+    def_event_select_reg.value = 0;
+    def_event_select_reg.fields.usr = 1;
+    def_event_select_reg.fields.os = 1;
+    def_event_select_reg.fields.enable = 1;
+
+    PCM::ExtendedCustomCoreEventDescription conf;
+    conf.fixedCfg = NULL; // default
+    conf.nGPCounters = pcm_in_use;
+
+    conf.gpCounterCfg = regs;
+    for (int i = 0; i < pcm_in_use; ++i)
+        regs[i] = def_event_select_reg;
+
+    for (int i = 0; i < pcm_in_use; i++) {
+        pcm_hardware_counter c = pcm_hdw_counters[i];
+        regs[i].fields.event_select = c.event_select;
+        regs[i].fields.umask = c.umask;
+    }
+
+    PCM *m = PCM::getInstance();
+    PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+    switch (status) {
+        case PCM::Success:
+            break;
+        case PCM::MSRAccessDenied:
+            std::cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)."
+                      << std::endl;
+        exit(EXIT_FAILURE);
+        case PCM::PMUBusy:
+            std::cerr
+                << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU."
+                << std::endl;
+        std::cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)"
+                  << std::endl;
+        char yn;
+        std::cin >> yn;
+        if ('y' == yn) {
+            m->resetPMU();
+            std::cerr << "PMU configuration has been reset. Try to rerun the program again." << std::endl;
+        }
+        exit(EXIT_FAILURE);
+        default:
+            std::cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << header << std::endl;
+    for (auto const &file : files)
+        run_test(file, m);
+//    for (auto const a : algorithms) {
+//        call_gnuplot(a);
+//    }
+
     return 0;
 }
 
@@ -232,8 +272,8 @@ void print_usage() {
 }
 
 void print_meassures() {
-    for (int i = 0; i < hdw_counters_cnt; i++) {
-        std::cout << hdw_counters[i].short_description << " ";
+    for (int i = 0; i < pcm_in_use; i++) {
+        std::cout << pcm_hdw_counters[i].short_description << " ";
     }
     std::cout << "filename" << std::endl;
 }
@@ -346,6 +386,7 @@ bool validate_arguments() {
     output = arguments[ARG_OUTPUT].string_values.back();
     refresh_count = arguments[ARG_REFRESH].number_values.back();
     iteration_count = arguments[ARG_ITERATIONS].number_values.back();
+    core = arguments[ARG_CORE].number_values.back();
     if (arguments[ARG_ALGORITHM].string_values.size() != 0u) {
         std::string const &chosen_name = arguments[ARG_ALGORITHM].string_values.front();
         for (auto const &a : algorithms) {
@@ -370,79 +411,7 @@ bool validate_arguments() {
     return true;
 }
 
-void run_isolated_test(std::string const &dataset) {
-    FILE *fq = fopen(dataset.c_str(), "r");
-    helper::file_handler::layout_file matrices{fq};
-    fclose(fq);
-    if (!matrices.valid) {
-        fprintf(stderr, "Matrix file of %s is invalid.\n", dataset.c_str());
-        return;
-    }
-    long long counters[hdw_counters_cnt] = {};
-    long long stoppers[hdw_counters_cnt] = {};
-
-    int cnts[hdw_counters_cnt];
-    for (int i = 0; i < hdw_counters_cnt; i++) {
-        cnts[i] = hdw_counters[i].counter;
-    }
-
-    algorithm_profile::multiply_delegate mult = chosen->multiply;
-    int **dest;
-    helper::matrix::initialize_matrix(dest, matrices.layout_m, matrices.layout_p);
-    for (unsigned i = refresh_count; i; --i) {
-        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest, chosen->option);
-    }
-
-    for (unsigned i = iteration_count; i; --i) {
-        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-
-        int start_counters_res = PAPI_start_counters(cnts, 3);
-        if (start_counters_res != PAPI_OK)
-            std::cout << "Couldn't start counters" << start_counters_res << std::endl;
-
-        //Actual calculation
-        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest, chosen->option);
-
-        int accum_counters_res = PAPI_accum_counters(counters, 3);
-        if (accum_counters_res != PAPI_OK)
-            std::cout << "Couldn't accumulate counters" << accum_counters_res << std::endl;
-
-        int stop_counters_res = PAPI_stop_counters(stoppers, 3);
-        if (stop_counters_res != PAPI_OK)
-            std::cout << "Couldn't stop counters" << stop_counters_res << std::endl;
-    }
-    for (unsigned i = iteration_count; i; --i) {
-        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-
-        int start_counters_res = PAPI_start_counters(cnts + 3, 3);
-        if (start_counters_res != PAPI_OK)
-            std::cout << "Couldn't start counters" << start_counters_res << std::endl;
-
-        //Actual calculation
-        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest, chosen->option);
-
-        int accum_counters_res = PAPI_accum_counters(counters + 3, 3);
-        if (accum_counters_res != PAPI_OK)
-            std::cout << "Couldn't accumulate counters" << accum_counters_res << std::endl;
-
-        int stop_counters_res = PAPI_stop_counters(stoppers, 3);
-        if (stop_counters_res != PAPI_OK)
-            std::cout << "Couldn't stop counters" << stop_counters_res << std::endl;
-    }
-    helper::matrix::destroy_matrix(dest);
-
-    // Print counter values
-    for (int i = 0; i < 6; i++) {
-        std::cout << counters[i] / iteration_count << " ";
-    }
-    std::cout << dataset << std::endl;
-}
-
-void run_test(std::string const &dataset) {
+void run_test(std::string const &dataset, PCM *m) {
     std::cout << std::endl << dataset << std::endl;
     bool B_flipped = false;
 
@@ -457,27 +426,37 @@ void run_test(std::string const &dataset) {
     }
 
     int **dest;
-    int events[hdw_counters_cnt];
-    for (int i = 0; i < hdw_counters_cnt; i++) {
-        events[i] = hdw_counters[i].counter;
-    }
+
+    const uint32 ncores = m->getNumCores();
+    uint64 BeforeTime = 0, AfterTime = 0;
+    SystemCounterState SysBeforeState, SysAfterState;
+    std::vector<CoreCounterState> BeforeState, AfterState;
+    std::vector<SocketCounterState> DummySocketStates;
 
     helper::matrix::initialize_matrix(dest, matrices.layout_m, matrices.layout_p);
+    bool equal_iter = iteration_count % 2 == 0;
     for (auto const &a : algorithms) {
-
-        SystemCounterState before = getSystemCounterState();
-
-        algorithm_profile::build_delegate build = a.build;
-        if (!B_flipped) {
-            B_flipped = build(matrices.layoutA, matrices.layoutB, matrices.layout_m, matrices.layout_n,
-                              matrices.layout_p);
+        if(a.max_input < matrices.layout_m){
+            std::cout << " # " << a.max_input << " < " << matrices.layout_m << " " << a.name << " skipping" << std::endl;
+            continue;
         }
 
-        algorithm_profile::multiply_delegate mult = a.multiply;
+        uint64 l2_acc = 0, l3_acc = 0;
+        uint64 transpose_acc = 0, transpose_start = 0, transpose_stop = 0;
 
-        unsigned step_size = 2;
-        long long counts[hdw_counters_cnt] = {};
-        long long stoppers[step_size] = {};
+        algorithm_profile::build_delegate build = a.build;
+        unsigned reps = B_flipped ? (equal_iter ? iteration_count : iteration_count + 1)
+                                  : (equal_iter ? iteration_count + 1 : iteration_count);
+        std::cout << "TRANSPOSE REPS: " << reps << std::endl;
+        transpose_start = m->getTickCount(1000, core); // measure in ms on core we are running on.
+        for(unsigned i = 0; i < reps; i++)
+            B_flipped = build(matrices.layoutA, matrices.layoutB, matrices.layout_m, matrices.layout_n,
+                          matrices.layout_p);
+        transpose_stop = m->getTickCount(1000, core);
+        transpose_acc = (transpose_stop - transpose_start) / reps;
+        std::cout << transpose_start << " # " << transpose_stop << " # " << transpose_acc << std::endl;
+
+        algorithm_profile::multiply_delegate mult = a.multiply;
 
         for (unsigned i = refresh_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
@@ -485,59 +464,75 @@ void run_test(std::string const &dataset) {
                  matrices.layout_p, dest, a.option);
         }
 
-        unsigned cnt_index = 0;
-        unsigned cnt_iterations = 0;
+        uint64 acc_time = 0;
+        uint64 acc_counts[ncores][pcm_in_use];
 
-        double acc_time = 0;
-        while(cnt_index < hdw_counters_cnt){
-            unsigned counters = hdw_counters_cnt >= cnt_index + step_size ? step_size : (cnt_index + step_size) - hdw_counters_cnt;
+        for(unsigned i = 0; i < ncores; i++)
+            for(unsigned j = 0; j < pcm_in_use; j++)
+                acc_counts[i][j] = 0;
 
-            for (unsigned i = iteration_count; i; --i) {
-                std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-                clock_t begin = clock();
+        for (unsigned i = iteration_count; i; --i) {
+            std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
 
-//                int signal = PAPI_start_counters(events + cnt_index, counters);
-//                if (signal != PAPI_OK)
-//                    std::cerr << "Failed to start counters with code " << signal << " in file " << dataset << " cnt_index " << cnt_index << " counters " << counters << std::endl;
+            BeforeTime = m->getTickCount(1000, core);
+            m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
 
-                mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-                     matrices.layout_p, dest, a.option);
+            mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
+                 matrices.layout_p, dest, a.option);
 
-//                signal = PAPI_accum_counters(counts + cnt_index, counters);
-//                if (signal != PAPI_OK)
-//                    std::cerr << "Failed to accumulate counters with code " << signal << " in file " << dataset
-//                              << std::endl;
-//                signal = PAPI_stop_counters(stoppers, counters);
-//                if (signal != PAPI_OK)
-//                    std::cerr << "Failed to stop counters with code " << signal << " in file " << dataset << std::endl;
-                clock_t end = clock();
-                acc_time += double(end - begin) / CLOCKS_PER_SEC;
+            m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
+            AfterTime = m->getTickCount(1000, core);
+
+            for (uint32 j = 0; j < ncores; j++) {
+                for (uint32 k = 0; k < pcm_in_use; k++) {
+                    acc_counts[j][k] += getNumberOfCustomEvents(k, BeforeState[j], AfterState[j]);
+                }
             }
-
-            cnt_iterations ++;
-            cnt_index += counters;
+            acc_time += AfterTime - BeforeTime;
+            l2_acc += getL2CacheMisses(SysBeforeState, SysAfterState);
+            l3_acc += getL3CacheMisses(SysBeforeState, SysAfterState);
         }
 
-        SystemCounterState after = getSystemCounterState();
-        std::cout << "Instructions per clock: " << getIPC(before, after) << std::endl;
-        std::cout << "Bytes read: " << getBytesReadFromMC(before, after) << std::endl;
-        std::cout << "Ref Cycles: " << getRefCycles(before, after) << std::endl;
-        std::cout << "Cycles: " << getCycles(before, after) << std::endl;
-        std::cout << "Cycles lost from L3 misses: " << getCyclesLostDueL3CacheMisses(before, after) << std::endl;
-        std::cout << "Cycles lost from L2 misses: " << getCyclesLostDueL2CacheMisses(before, after) << std::endl;
-        std::cout << "Cycles lost from L3 cache misses: " << getL3CacheMisses(before, after) << std::endl;
-        std::cout << "Cycles lost from L2 cache misses: " << getL2CacheMisses(before, after) << std::endl;
+        l2_acc /= iteration_count;
+        l3_acc /= iteration_count;
 
-        acc_time /= iteration_count * cnt_iterations;
+        std::cout << l2_acc << " " << l3_acc << std::endl;
+
+        for (uint32 i = 0; i < ncores; i++){
+            for (uint32 j = 0; j < pcm_in_use; j++){
+                acc_counts[i][j] /= iteration_count;
+                std::cout << acc_counts[i][j] << "  ";
+            }
+            std::cout << std::endl;
+        }
+        acc_time /= iteration_count;
         std::ofstream result_file;
         result_file.open(file_name_for_algorithm(a), std::ios::app);
-        for (unsigned i = 0u; i < hdw_counters_cnt; i++) {
-            result_file << counts[i] / iteration_count << " ";
-            std::cout << counts[i] / iteration_count << " ";
+
+        unsigned max_idx = 0;
+        if(core == 4){
+            uint64 max_value = 0;
+
+            for(unsigned i = 0; i < pcm_in_use; i++){
+                if(acc_counts[i][0] > max_value){
+                    max_value = acc_counts[i][0];
+                    max_idx = i;
+                }
+            }
+        } else {
+            max_idx = core;
         }
-        result_file << acc_time << " " << matrices.layout_m << std::endl;
+
+        for (unsigned i = 0u; i < pcm_in_use; i ++){
+            result_file << acc_counts[max_idx][i] << "  ";
+            std::cout << acc_counts[max_idx][i] << "  ";
+        }
+
+        result_file << transpose_acc << "  ";
+        result_file << acc_time << " " << transpose_acc + acc_time  << "  " << l2_acc << "  " << l3_acc << "  " << matrices.layout_m << " " << a.name << std::endl;
         result_file.close();
-        std::cout << acc_time << " " << matrices.layout_m << " " << a.name << std::endl;
+        std::cout << transpose_acc << "  ";
+        std::cout << acc_time << " " << transpose_acc + acc_time  << "  " << l2_acc << "  " << l3_acc << "  " << matrices.layout_m << " " << a.name << std::endl;
     }
     helper::matrix::destroy_matrix(dest);
 }
@@ -556,7 +551,7 @@ void call_gnuplot(algorithm_profile algorithm) {
                 "set title 'Counts per multiplication'\n"
                 "set key left top\n"
                 "plot for [col=1:%d] '%s' using %d:col with linespoints\n",
-            output_name.c_str(), hdw_counters_cnt, input_name.c_str(), hdw_counters_cnt + 1);
+            output_name.c_str(), pcm_in_use, input_name.c_str(), pcm_in_use + 1);
     fclose(fplot);
     int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
     if (gnuplot_ret)
