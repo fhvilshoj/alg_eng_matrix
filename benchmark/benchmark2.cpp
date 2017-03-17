@@ -104,7 +104,7 @@ struct algorithm_profile {
     {
 //        {"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
 //        {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
-        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false, 200}, // 1500
+        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false, 1500},
         {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "obl.160",         false, 25000},
         {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
         {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true, 25000},
@@ -425,6 +425,11 @@ void run_test(std::string const &dataset, PCM *m) {
         return;
     }
 
+    if(matrices.layout_m > 4500){
+        refresh_count = 0;
+        iteration_count = 1;
+    }
+
     int **dest;
 
     const uint32 ncores = m->getNumCores();
@@ -447,14 +452,12 @@ void run_test(std::string const &dataset, PCM *m) {
         algorithm_profile::build_delegate build = a.build;
         unsigned reps = B_flipped ? (equal_iter ? iteration_count : iteration_count + 1)
                                   : (equal_iter ? iteration_count + 1 : iteration_count);
-        std::cout << "TRANSPOSE REPS: " << reps << std::endl;
-        transpose_start = m->getTickCount(1000, core); // measure in ms on core we are running on.
+        transpose_start = m->getTickCount(1000000, core); // measure in ms on core we are running on.
         for(unsigned i = 0; i < reps; i++)
             B_flipped = build(matrices.layoutA, matrices.layoutB, matrices.layout_m, matrices.layout_n,
                           matrices.layout_p);
-        transpose_stop = m->getTickCount(1000, core);
+        transpose_stop = m->getTickCount(1000000, core);
         transpose_acc = (transpose_stop - transpose_start) / reps;
-        std::cout << transpose_start << " # " << transpose_stop << " # " << transpose_acc << std::endl;
 
         algorithm_profile::multiply_delegate mult = a.multiply;
 
@@ -474,14 +477,14 @@ void run_test(std::string const &dataset, PCM *m) {
         for (unsigned i = iteration_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
 
-            BeforeTime = m->getTickCount(1000, core);
+            BeforeTime = m->getTickCount(1000000, core);
             m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
 
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
                  matrices.layout_p, dest, a.option);
 
             m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
-            AfterTime = m->getTickCount(1000, core);
+            AfterTime = m->getTickCount(1000000, core);
 
             for (uint32 j = 0; j < ncores; j++) {
                 for (uint32 k = 0; k < pcm_in_use; k++) {
@@ -496,14 +499,11 @@ void run_test(std::string const &dataset, PCM *m) {
         l2_acc /= iteration_count;
         l3_acc /= iteration_count;
 
-        std::cout << l2_acc << " " << l3_acc << std::endl;
 
         for (uint32 i = 0; i < ncores; i++){
             for (uint32 j = 0; j < pcm_in_use; j++){
                 acc_counts[i][j] /= iteration_count;
-                std::cout << acc_counts[i][j] << "  ";
             }
-            std::cout << std::endl;
         }
         acc_time /= iteration_count;
         std::ofstream result_file;
@@ -533,6 +533,11 @@ void run_test(std::string const &dataset, PCM *m) {
         result_file.close();
         std::cout << transpose_acc << "  ";
         std::cout << acc_time << " " << transpose_acc + acc_time  << "  " << l2_acc << "  " << l3_acc << "  " << matrices.layout_m << " " << a.name << std::endl;
+
+        std::swap(BeforeTime, AfterTime);
+        std::swap(BeforeState, AfterState);
+        std::swap(SysBeforeState, SysAfterState);
+
     }
     helper::matrix::destroy_matrix(dest);
 }
