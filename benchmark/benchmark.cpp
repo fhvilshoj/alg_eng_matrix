@@ -13,6 +13,7 @@
 #include "../src/helper.hpp"
 #include "../src/naive_flip.hpp"
 #include "../src/oblivious_s_flip.hpp"
+#include "../src/tiled_flip.hpp"
 
 #ifdef __GNUC__
 
@@ -65,9 +66,9 @@ struct argument {
     {
         {"input",      "i", "Sets the input query file. Multiple ones allowed.",                                                           1u, 128u, argument::string},
         {"output",     "o", "Sets the output file name. Defaults to 'result'. This argument is ignored if algorithm is set.",              1u, 2u,   argument::string, {}, {"result"}, {}},
-        {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {0u}},
+        {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {2u}},
         {"algorithm",  "a", "Sets the only algorithm to run. This is for isolated tests.",                                                 0u, 1u,   argument::string, {}, {},         {}},
-        {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {1000u}},
+        {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {5u}},
     };
 
 constexpr int ARG_INPUT = 0;
@@ -99,13 +100,9 @@ struct algorithm_profile {
     {
 //        {"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
 //        {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
-        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false},
-        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "160",         false},
-        {"naive:1",     matmul::naive::multiply,            matmul::naive::build,            0,    "nai1",        false},
-        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true},
-        {"obl:fl:512",  matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 512,  "obl.fl.512",  true},
-        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true},
-        {"obl:fl:2048", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 2048, "obl.fl.2048", true}
+//        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false},
+//        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "160",         false},
+//        {"naive:1",     matmul::naive::multiply,            matmul::naive::build,            0,    "nai1",        false},
 //            {"obl:40", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 40, "40", false},
 //            {"obl:10", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 10, "10", false},
 //            {"obl:1",   matmul::oblivious::multiply, matmul::oblivious::build, 0, "0", false},
@@ -115,12 +112,20 @@ struct algorithm_profile {
     { "obl_c:4", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 4, "4" , false},
     { "obl_c:2", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 2, "2" , false},
     { "obl_c:1", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 1, "1" , false},*/
-/*    { "obl:fl:8", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 8, "nai.fl.8" , true},
-    { "obl:fl:16", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 16, "nai.fl.16" , true},
-    { "obl:fl:32", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 32, "nai.fl.32" , true},
-    { "obl:fl:64", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 64, "nai.fl.64" , true},
-    { "obl:fl:128", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 128, "nai.fl.128" , true},
-    { "obl:fl:256", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 256, "nai.fl.256" , true},*/
+        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true},
+        {"tiled:fl:20", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.20", true},
+        {"tiled:fl:50", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 50, "tiled.fl.50", true},
+        {"tiled:fl:140", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 140, "tiled.fl.140", true},
+//
+//    { "obl:fl:8", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 8, "nai.fl.8" , true},
+//    { "obl:fl:16", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 16, "nai.fl.16" , true},
+//    { "obl:fl:32", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 32, "nai.fl.32" , true},
+//    { "obl:fl:64", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 64, "nai.fl.64" , true},
+//    { "obl:fl:128", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 128, "nai.fl.128" , true},
+//    { "obl:fl:256", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 256, "nai.fl.256" , true},
+//    {"obl:fl:512",  matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 512,  "obl.fl.512",  true},
+//    {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true},
+//    {"obl:fl:2048", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 2048, "obl.fl.2048", true}
         /*,
     { "naive:2", matmul::naive::multiply, matmul::naive::build, 2, "nai2" , false},
     { "naive:4", matmul::naive::multiply, matmul::naive::build, 4, "nai4" , false},
@@ -138,13 +143,13 @@ struct hardware_counter {
 };
 
 hardware_counter hdw_counters[] = {
-    {PAPI_TLB_TL,  "Total translation lookaside buffer misses", "TLB_TL"},
+//    {PAPI_TLB_TL,  "Total translation lookaside buffer misses", "TLB_TL"},
     {PAPI_L1_TCM,  "Level 1 total cache misses",                "L1_TCM"},
     {PAPI_L2_TCM,  "Level 2 total cache misses",                "L2_TCM"},
     {PAPI_L3_TCM,  "Level 3 total cache misses",                "L3_TCM"},
     {PAPI_TOT_CYC, "Total cycles executed",                     "TOT_CYC"},
     {PAPI_BR_CN,   "Conditional branch instructions executed",  "BR_CN"},
-//    {PAPI_BR_MSP,  "Conditional branch instructions mispred",   "BR_MSP"},
+    {PAPI_BR_MSP,  "Conditional branch instructions mispred",   "BR_MSP"},
 };
 
 //PAPI_EINVAL
@@ -529,22 +534,22 @@ void run_test(std::string const &dataset) {
 }
 
 void call_gnuplot(algorithm_profile algorithm) {
-    constexpr unsigned algo_count = sizeof(algorithms) / sizeof(algorithms[0]);
-    std::string input_name = file_name_for_algorithm(algorithm);
-    std::string output_name = file_name_for_algorithm(algorithm, ".png");
-    FILE *fplot = fopen((output + ".gnuplot").c_str(), "w");
-    fprintf(fplot,
-            "set term png\n"
-                "set output '%s'\n"
-                "set ylabel 'counts' rotate by 90\n"
-                "set xlabel 'size of square matrix'\n"
-                "set key autotitle columnhead\n"
-                "set title 'Counts per multiplication'\n"
-                "set key left top\n"
-                "plot for [col=1:%d] '%s' using %d:col with linespoints\n",
-            output_name.c_str(), hdw_counters_cnt, input_name.c_str(), hdw_counters_cnt + 1);
-    fclose(fplot);
-    int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
-    if (gnuplot_ret)
-        fprintf(stderr, "Call to gnuplot failed with code %d.\n", gnuplot_ret);
+//    constexpr unsigned algo_count = sizeof(algorithms) / sizeof(algorithms[0]);
+//    std::string input_name = file_name_for_algorithm(algorithm);
+//    std::string output_name = file_name_for_algorithm(algorithm, ".png");
+//    FILE *fplot = fopen((output + ".gnuplot").c_str(), "w");
+//    fprintf(fplot,
+//            "set term png\n"
+//                "set output '%s'\n"
+//                "set ylabel 'counts' rotate by 90\n"
+//                "set xlabel 'size of square matrix'\n"
+//                "set key autotitle columnhead\n"
+//                "set title 'Counts per multiplication'\n"
+//                "set key left top\n"
+//                "plot for [col=1:%d] '%s' using %d:col with linespoints\n",
+//            output_name.c_str(), hdw_counters_cnt, input_name.c_str(), hdw_counters_cnt + 1);
+//    fclose(fplot);
+//    int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
+//    if (gnuplot_ret)
+//        fprintf(stderr, "Call to gnuplot failed with code %d.\n", gnuplot_ret);
 }

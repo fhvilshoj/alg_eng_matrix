@@ -8,6 +8,8 @@
 #include "../../src/oblivious_cores.hpp"
 #include "../../src/oblivious_s_flip.hpp"
 #include "../../src/naive_flip.hpp"
+#include "../../src/tiled.hpp"
+#include "../../src/tiled_flip.hpp"
 
 
 TEST_CASE("First simple testcase", "[Naive, empty]"){
@@ -17,6 +19,8 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     int **resBc;
     int **resNaiveFlip;
     int **resOblFlip;
+    int **resTiled;
+    int **resTiledFlip;
     int **A;
     int **B;
     int const m = 25;
@@ -32,6 +36,8 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     helper::matrix::initialize_matrix(resBc, m, p);
     helper::matrix::initialize_matrix(resNaiveFlip, m, p);
     helper::matrix::initialize_matrix(resOblFlip, m, p);
+    helper::matrix::initialize_matrix(resTiled, m, p);
+    helper::matrix::initialize_matrix(resTiledFlip, m, p);
 
     unsigned a = 1;
     for (unsigned i = 0u; i < m; i++){
@@ -46,10 +52,12 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     matmul::oblivious::multiply((const int **) A, (const int **) B, m, n, p, resB, 0);
     matmul::oblivious_s::multiply((const int **) A, (const int **) B, m, n, p, resBs, 10);
     matmul::oblivious_c::multiply((const int **) A, (const int **) B, m, n, p, resBc, 8);
+    matmul::tiled::multiply((const int **) A, (const int **) B, m, n, p, resTiled, 8);
 
     matmul::naive_flip::build(A, B, m, n, p);
     matmul::naive_flip::multiply((const int **) A, (const int **) B, m, n, p, resNaiveFlip, 0);
     matmul::oblivious_s_flip::multiply((const int **) A, (const int **) B, m, n, p, resOblFlip, 4);
+    matmul::tiled_flip::multiply((const int **) A, (const int **) B, m, n, p, resTiledFlip, 8);
 
     int result[m][p] = {{130325,130650,130975,131300,131625,131950,132275,132600,132925,133250,133575,133900,134225,134550,134875,135200,135525,135850,136175,136500,136825,137150,137475,137800,138125},
                         {318450,319400,320350,321300,322250,323200,324150,325100,326050,327000,327950,328900,329850,330800,331750,332700,333650,334600,335550,336500,337450,338400,339350,340300,341250},
@@ -85,6 +93,8 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
             REQUIRE(resBs[i][j] == resBc[i][j]);
             REQUIRE(resBs[i][j] == resNaiveFlip[i][j]);
             REQUIRE(resNaiveFlip[i][j] == resOblFlip[i][j]);
+            REQUIRE(resNaiveFlip[i][j] == resTiled[i][j]);
+            REQUIRE(resNaiveFlip[i][j] == resTiledFlip[i][j]);
         }
     }
 
@@ -96,4 +106,6 @@ TEST_CASE("First simple testcase", "[Naive, empty]"){
     helper::matrix::destroy_matrix(resBc);
     helper::matrix::destroy_matrix(resNaiveFlip);
     helper::matrix::destroy_matrix(resOblFlip);
+    helper::matrix::destroy_matrix(resTiled);
+    helper::matrix::destroy_matrix(resTiledFlip);
 }

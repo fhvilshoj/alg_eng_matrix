@@ -16,22 +16,22 @@ namespace matmul {
                 if(m == 1 && n == 1 && p == 1){
                     dest[0][doffset + 0] += A[0][aoffset + 0] * B[0][boffset + 0];
                 }
-                else if(m >= std::max(n, p)){
+                else if(m >= (n >= p ? n : p)){
                     // case 1
-                    const unsigned split = m / 2;
+                    const unsigned split =  m >> 1; // divide by 2
                     const unsigned rest = m - split;
                     multiply(A, B, split, n, p, dest, doffset, aoffset, boffset);
                     multiply(A + split, B, rest, n, p, dest + split, doffset, aoffset, boffset);
-                } else if(n >= std::max(m, p)){
+                } else if(n >= (m >= p ? m : p)){
                     //case 2
-                    const unsigned split = n / 2;
+                    const unsigned split = n >> 1; // divide by 2
                     const unsigned rest = n - split;
                     multiply(A, B, m, split, p, dest, doffset, aoffset, boffset);
                     multiply(A, B + split, m, rest, p, dest, doffset, aoffset + split, boffset);
 
                 } else {
                     //case 3
-                    const unsigned split = p / 2;
+                    const unsigned split = p >> 1; // divide by 2
                     const unsigned rest = p - split;
                     multiply(A, B, m, n, split, dest, doffset, aoffset, boffset);
                     multiply(A, B, m, n, rest, dest, doffset + split, aoffset, boffset + split);

@@ -14,7 +14,9 @@
 #include "../src/helper.hpp"
 #include "../src/naive_flip.hpp"
 #include "../src/oblivious_s_flip.hpp"
+#include "../src/tiled.hpp"
 #include "../../pcm/types.h"
+#include "../src/tiled_flip.hpp"
 
 #ifdef __GNUC__
 
@@ -67,9 +69,9 @@ struct argument {
     {
         {"input",      "i", "Sets the input query file. Multiple ones allowed.",                                                           1u, 128u, argument::string},
         {"output",     "o", "Sets the output file name. Defaults to 'result'. This argument is ignored if algorithm is set.",              1u, 2u,   argument::string, {}, {"result"}, {}},
-        {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {0u}},
+        {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {1u}},
         {"algorithm",  "a", "Sets the only algorithm to run. This is for isolated tests.",                                                 0u, 1u,   argument::string, {}, {},         {}},
-        {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {1000u}},
+        {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {2u}},
         {"core",       "c", "Sets the execution core index",                                                                               0u, 4u,   argument::number, {}, {},         {4u}},
     };
 
@@ -104,12 +106,23 @@ struct algorithm_profile {
     {
 //        {"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
 //        {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
-        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false, 1500},
-        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "obl.160",         false, 25000},
-        {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
-        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true, 25000},
+//        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false, 1500},
+//        {"obl:130",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      130,  "obl.130",         false, 25000},
+//        {"obl:145",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      145,  "obl.145",         false, 25000},
+//        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "obl.160",         false, 25000},
+//        {"obl:180",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      180,  "obl.180",         false, 25000},
+//        {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
+        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true, 50000},
 //        {"obl:fl:512",  matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 512,  "obl.fl.512",  true},
-        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true, 25000},
+        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true, 50000},
+        {"tiled:fl:20", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.20", true, 25000},
+        {"tiled:fl:50", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.50", true, 25000},
+        {"tiled:fl:140", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.140", true, 25000},
+//        {"tiled:32", matmul::tiled::multiply, matmul::tiled::build, 32, "tiled.32", true, 25000},
+//        {"tiled:50", matmul::tiled::multiply, matmul::tiled::build, 50, "tiled.50", true, 25000},
+//        {"tiled:70", matmul::tiled::multiply, matmul::tiled::build, 75, "tiled.75", true, 25000},
+//        {"tiled:145", matmul::tiled::multiply, matmul::tiled::build, 145, "tiled.145", true, 25000},
+//        {"tiled:300", matmul::tiled::multiply, matmul::tiled::build, 300, "tiled.300", true, 25000},
 //        {"obl:fl:2048", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 2048, "obl.fl.2048", true}
 //            {"obl:40", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 40, "40", false},
 //            {"obl:10", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 10, "10", false},
@@ -425,11 +438,6 @@ void run_test(std::string const &dataset, PCM *m) {
         return;
     }
 
-    if(matrices.layout_m > 4500){
-        refresh_count = 0;
-        iteration_count = 1;
-    }
-
     int **dest;
 
     const uint32 ncores = m->getNumCores();
@@ -460,19 +468,18 @@ void run_test(std::string const &dataset, PCM *m) {
         transpose_acc = (transpose_stop - transpose_start) / reps;
 
         algorithm_profile::multiply_delegate mult = a.multiply;
-
-        for (unsigned i = refresh_count; i; --i) {
-            std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-            mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-                 matrices.layout_p, dest, a.option);
-        }
-
         uint64 acc_time = 0;
         uint64 acc_counts[ncores][pcm_in_use];
 
         for(unsigned i = 0; i < ncores; i++)
             for(unsigned j = 0; j < pcm_in_use; j++)
                 acc_counts[i][j] = 0;
+
+        for (unsigned i = refresh_count; i; --i) {
+            std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
+            mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
+                 matrices.layout_p, dest, a.option);
+        }
 
         for (unsigned i = iteration_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);

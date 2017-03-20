@@ -20,24 +20,24 @@ namespace matmul {
             }
 
             void multiply(int const **A, int const **B, unsigned const m, unsigned const n, unsigned const p, int **dest, unsigned const option, unsigned const doffset = 0, unsigned const aoffset = 0, unsigned const boffset = 0){
-                const unsigned max = std::max(m, std::max(n, p));
+                const unsigned max = m >= n ? (m >= p ? m : p) : (n >= p ? n : p);
                 if(max < option){
                     multiply_naive(A, B, m, n, p, dest, doffset, aoffset, boffset);
-                } else if(m >= std::max(n, p)){
+                } else if(m >= (n >= p ? n : p)){
                     // case 1
-                    const unsigned split = m / 2;
+                    const unsigned split = m >> 1; // divide by 2
                     const unsigned rest = m - split;
                     multiply(A, B, split, n, p, dest, option, doffset, aoffset, boffset);
                     multiply(A + split, B, rest, n, p, dest + split, option, doffset, aoffset, boffset);
-                } else if(n >= std::max(m, p)){
+                } else if(n >= (m >= p ? m : p)){
                     //case 2
-                    const unsigned split = n / 2;
+                    const unsigned split = n >> 1; // divide by 2
                     const unsigned rest = n - split;
                     multiply(A, B, m, split, p, dest, option, doffset, aoffset, boffset);
                     multiply(A, B, m, rest, p, dest, option, doffset, aoffset + split, boffset + split);
                 } else {
                     //case 3
-                    const unsigned split = p / 2;
+                    const unsigned split = p >> 1; // divide by 2
                     const unsigned rest = p - split;
                     multiply(A, B, m, n, split, dest, option, doffset, aoffset, boffset);
                     multiply(A, B + split, m, n, rest, dest, option, doffset + split, aoffset, boffset);
