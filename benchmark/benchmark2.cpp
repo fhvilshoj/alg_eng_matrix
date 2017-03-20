@@ -71,7 +71,7 @@ struct argument {
         {"output",     "o", "Sets the output file name. Defaults to 'result'. This argument is ignored if algorithm is set.",              1u, 2u,   argument::string, {}, {"result"}, {}},
         {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {2u}},
         {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {5u}},
-        {"core",       "c", "Sets the execution core index",                                                                               0u, 4u,   argument::number, {}, {},         {4u}},
+        {"core",       "c", "Sets the execution core index",                                                                               0u, 4u,   argument::number, {}, {},         {0u}},
     };
 
 constexpr int ARG_INPUT = 0;
@@ -102,7 +102,7 @@ struct algorithm_profile {
 
 } algorithms[] =
     {
-        {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
+        {"naive", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
         {"naive:fl", matmul::naive_flip::multiply, matmul::naive_flip::build, 0, "nai.fl", true, 50000},
 //        {"naive:2", matmul::naive::multiply, matmul::naive::build, 2, "nai2", false},
 //        {"naive:4", matmul::naive::multiply, matmul::naive::build, 4, "nai4", false},
@@ -416,7 +416,6 @@ void run_test(std::string const &dataset, PCM *m) {
     }
 
     int **dest;
-
     const uint32 ncores = m->getNumCores();
     uint64 BeforeTime = 0, AfterTime = 0;
     SystemCounterState SysBeforeState, SysAfterState;
@@ -437,11 +436,13 @@ void run_test(std::string const &dataset, PCM *m) {
         algorithm_profile::build_delegate build = a.build;
         unsigned reps = B_flipped ? (equal_iter ? iteration_count : iteration_count + 1)
                                   : (equal_iter ? iteration_count + 1 : iteration_count);
-        transpose_start = m->getTickCount(1000000, core); // measure in ms on core we are running on.
-        for(unsigned i = 0; i < reps; i++)
+        unsigned c = core == 4 ? 0 : core;
+        transpose_start = m->getTickCount(1000000, c); // measure in ms on core we are running on.
+        for(unsigned i = 0; i < reps; i++) {
             B_flipped = build(matrices.layoutA, matrices.layoutB, matrices.layout_m, matrices.layout_n,
-                          matrices.layout_p);
-        transpose_stop = m->getTickCount(1000000, core);
+                                  matrices.layout_p);
+        }
+        transpose_stop = m->getTickCount(1000000, c);
         transpose_acc = (transpose_stop - transpose_start) / reps;
 
         algorithm_profile::multiply_delegate mult = a.multiply;
@@ -457,18 +458,18 @@ void run_test(std::string const &dataset, PCM *m) {
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
                  matrices.layout_p, dest, a.option);
         }
-
+        std::cout << "counting" << std::endl;
         for (unsigned i = iteration_count; i; --i) {
             std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
 
-            BeforeTime = m->getTickCount(1000000, core);
+            BeforeTime = m->getTickCount(1000000, c);
             m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
 
             mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
                  matrices.layout_p, dest, a.option);
 
             m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
-            AfterTime = m->getTickCount(1000000, core);
+            AfterTime = m->getTickCount(1000000, c);
 
             for (uint32 j = 0; j < ncores; j++) {
                 for (uint32 k = 0; k < pcm_in_use; k++) {
@@ -500,6 +501,7 @@ void run_test(std::string const &dataset, PCM *m) {
                 if(acc_counts[i][0] > max_value){
                     max_value = acc_counts[i][0];
                     max_idx = i;
+                    core = i;
                 }
             }
         } else {
