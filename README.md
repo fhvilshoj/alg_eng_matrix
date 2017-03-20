@@ -7,16 +7,19 @@ different alrogithms for multiplying matrices.
 
 ## Algorithms
 
-We have implemented the following algorithms
+The project contains the following algorithms.
 
 Algorithm | Description 
 --- | --- 
-**Naive**   | This algorithm is simply three simple for-loops iterating through the two matrices.
-**Naive:T** | This algorithm takes advantage of transposing B in A * B before multiplying the two to lower cache misses from $n^3$ to $\frac{n^3}{cache-line-size}$.
-**Obl**     | This algorithm uses a cache oblivious approach to lower the cache misses by keeping on recursing on smaller sub problems.
-**Obl:x**   | This algorithm uses the same recursion as **Obl** but stops when the problem size is below a threshold of size *x* where it switches to the **Naive** algorihm.
-**Obl:T:x** | This algorithm combines the benefits of **Naive:T** and **Obl:x** by transposing B and recursing until some threshold *x* and then switching to **Naive:T**.
-**Tile:x**  | This algorithm uses a tile based approach where it divides A and B into tiles that fits into cache and then calculates every sub problem using **Naive**. This algorithm is thus a cache aware algorithm.
+**Naive**       | This algorithm is simply three simple for-loops iterating through the two matrices.
+**Naive:x**     | This algorithm is equal to **Naive** but usees OpenMP to parallelize
+**Naive:T**     | This algorithm takes advantage of transposing B in A * B before multiplying the two to lower cache misses from $n^3$ to $\frac{n^3}{cache-line-size}$.
+**Naive:T:x**   | This algorithm is equal to **Naive:T** but uses OpenMP to parallelize
+**Obl**         | This algorithm uses a cache oblivious approach to lower the cache misses by keeping on recursing on smaller sub problems.
+**Obl:x**       | This algorithm uses the same recursion as **Obl** but stops when the problem size is below a threshold of size *x* where it switches to the **Naive** algorihm.
+**Obl:T:x**     | This algorithm combines the benefits of **Naive:T** and **Obl:x** by transposing B and recursing until some threshold *x* and then switching to **Naive:T**.
+**Tile:x**      | This algorithm uses a tile based approach where it divides A and B into tiles that fits into cache and then calculates every sub problem using **Naive**. This algorithm is thus a cache aware algorithm.
+**Tile:T:x**    | This algorithm uses the same algorithm as **Tile:x** but uses **Naive:T** for the sub problems.
 
 ## Building
 
