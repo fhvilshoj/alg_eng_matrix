@@ -82,4 +82,4 @@ Example:
     and not guaranteed to work with others.
 - [Performance API (PAPI)](http://icl.utk.edu/papi/):
     PAPI works only on Linux and it has to be installed such that `/usr/local/lib/libpapi.a`
-    is present on the machine. Installation guide can be found on the webpage.
+    is present at this exact location. Installation guide can be found on the webpage.
