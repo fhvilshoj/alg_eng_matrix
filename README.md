@@ -16,7 +16,7 @@ Algorithm | Description
 **Obl**     | This algorithm uses a cache oblivious approach to lower the cache misses by keeping on recursing on smaller sub problems.
 **Obl:x**   | This algorithm uses the same recursion as **Obl** but stops when the problem size is below a threshold of size *x* where it switches to the **Naive** algorihm.
 **Obl:T:x** | This algorithm combines the benefits of **Naive:T** and **Obl:x** by transposing B and recursing until some threshold *x* and then switching to **Naive:T**.
-**Tile:x**  | This algorithm uses a tile based approach where it divides A and B into tiles that fits into cache and is thus a cache aware algorithm.
+**Tile:x**  | This algorithm uses a tile based approach where it divides A and B into tiles that fits into cache and then calculates every sub problem using **Naive**. This algorithm is thus a cache aware algorithm.
 
 ## Building
 
