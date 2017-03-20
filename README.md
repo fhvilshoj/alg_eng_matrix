@@ -5,7 +5,7 @@ Engineering course at Aarhus University.
 It includes different includes implementations of 
 different alrogithms for multiplying matrices.
 
-##Algorithms
+## Algorithms
 
 We have implemented the following algorithms
 
