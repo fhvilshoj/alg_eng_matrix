@@ -73,6 +73,8 @@ Example:
 > sudo taskset -c 0 nice -n -20 ./benchmark -i:data/42_42_42.data -r:5 -l:10 -o:my_run
 ```
 
+*Note* that all benchmark result data will be located in the *output* folder in the root of the project.
+
 ## Benchmark2
 
 The benchmark executable takes different arguments and benchmarks
@@ -86,6 +88,22 @@ Example:
 ```commandline
 > sudo taskset -c 0 nice -n -20 ./benchmark -i:data/42_42_42.data -r:5 -l:10 -o:my_run -c:0
 ```
+*Note* that all benchmark result data will be located in the *output* folder in the root of the project.
+
+## Extra tools
+
+The project includes `print_result_cols.py` that can be used to print a single column from the result files
+in the following way.
+
+**Arguments**:
+- `<col-idx>`: 0 based index of the col to print from every file
+- `<data-file>`: One or more files to print data from.
+
+```commandline
+> python print_result_cols.py 0 my_run.nai1.data my_run.obl.160.data
+```
+
+Will print the first column of `my_run.nai1.data` and `my_run.obl.160.data` in a table like style.
 
 ## Dependencies
 
