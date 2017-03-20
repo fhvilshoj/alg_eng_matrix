@@ -102,47 +102,45 @@ struct algorithm_profile {
 
 } algorithms[] =
     {
-//        {"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
-//        {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
-//        {"obl:2",       matmul::oblivious::multiply,        matmul::oblivious::build,        2,    "2",           false, 1500},
-//        {"obl:130",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      130,  "obl.130",         false, 25000},
-//        {"obl:145",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      145,  "obl.145",         false, 25000},
-//        {"obl:160",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      160,  "obl.160",         false, 25000},
-//        {"obl:180",     matmul::oblivious_s::multiply,      matmul::oblivious_s::build,      180,  "obl.180",         false, 25000},
-//        {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
-        {"naive:fl",    matmul::naive_flip::multiply,       matmul::naive_flip::build,       0,    "nai.fl",      true, 50000},
-//        {"obl:fl:512",  matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 512,  "obl.fl.512",  true},
-        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true, 50000},
-        {"tiled:fl:20", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.20", true, 25000},
-        {"tiled:fl:50", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.50", true, 25000},
-        {"tiled:fl:140", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.140", true, 25000},
+        {"naive:1", matmul::naive::multiply, matmul::naive::build, 0, "nai1", false, 3500},
+        {"naive:fl", matmul::naive_flip::multiply, matmul::naive_flip::build, 0, "nai.fl", true, 50000},
+//        {"naive:2", matmul::naive::multiply, matmul::naive::build, 2, "nai2", false},
+//        {"naive:4", matmul::naive::multiply, matmul::naive::build, 4, "nai4", false},
+//        {"naive:8", matmul::naive::multiply, matmul::naive::build, 8, "nai8", false},
+//        {"naive:16", matmul::naive::multiply, matmul::naive::build, 16, "nai16", false},
+//        {"naive:32", matmul::naive::multiply, matmul::naive::build, 16, "nai32", false},
 //        {"tiled:32", matmul::tiled::multiply, matmul::tiled::build, 32, "tiled.32", true, 25000},
 //        {"tiled:50", matmul::tiled::multiply, matmul::tiled::build, 50, "tiled.50", true, 25000},
 //        {"tiled:70", matmul::tiled::multiply, matmul::tiled::build, 75, "tiled.75", true, 25000},
 //        {"tiled:145", matmul::tiled::multiply, matmul::tiled::build, 145, "tiled.145", true, 25000},
 //        {"tiled:300", matmul::tiled::multiply, matmul::tiled::build, 300, "tiled.300", true, 25000},
-//        {"obl:fl:2048", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 2048, "obl.fl.2048", true}
-//            {"obl:40", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 40, "40", false},
-//            {"obl:10", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 10, "10", false},
-//            {"obl:1",   matmul::oblivious::multiply, matmul::oblivious::build, 0, "0", false},
-
-/*    { "obl_c:16", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 16, "16" , false},
-    { "obl_c:8", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 8, "8" , false},
-    { "obl_c:4", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 4, "4" , false},
-    { "obl_c:2", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 2, "2" , false},
-    { "obl_c:1", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 1, "1" , false},*/
-/*    { "obl:fl:8", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 8, "nai.fl.8" , true},
-    { "obl:fl:16", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 16, "nai.fl.16" , true},
-    { "obl:fl:32", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 32, "nai.fl.32" , true},
-    { "obl:fl:64", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 64, "nai.fl.64" , true},
-    { "obl:fl:128", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 128, "nai.fl.128" , true},
-    { "obl:fl:256", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 256, "nai.fl.256" , true},*/
-        /*,
-    { "naive:2", matmul::naive::multiply, matmul::naive::build, 2, "nai2" , false},
-    { "naive:4", matmul::naive::multiply, matmul::naive::build, 4, "nai4" , false},
-    { "naive:8", matmul::naive::multiply, matmul::naive::build, 8, "nai8" , false},
-    { "naive:16", matmul::naive::multiply, matmul::naive::build, 16, "nai16" , false},
-    { "naive:32", matmul::naive::multiply, matmul::naive::build, 16, "nai32" , false},*/
+//        {"tiled:fl:20", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.20", true, 25000},
+//        {"tiled:fl:50", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.50", true, 25000},
+        {"tiled:fl:140", matmul::tiled_flip::multiply, matmul::tiled_flip::build, 20, "tiled.fl.140", true, 25000},
+//        {"obl:2", matmul::oblivious::multiply, matmul::oblivious::build, 2, "2", false, 1500},
+//        {"obl:10", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 10, "10", false},
+//        {"obl:40", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 40, "40", false},
+//        {"obl:130", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 130, "obl.130", false, 25000},
+//        {"obl:145", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 145, "obl.145", false, 25000},
+        {"obl:160", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 160, "obl.160", false, 25000},
+//        {"obl:180", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 180, "obl.180", false, 25000},
+//        {"obl:640", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 640, "640", false},
+//        {"obl:1280", matmul::oblivious_s::multiply, matmul::oblivious_s::build, 1280, "1280", false},
+//        {"obl:fl:8", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 8, "nai.fl.8", true},
+//        {"obl:fl:16", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 16, "nai.fl.16", true},
+//        {"obl:fl:32", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 32, "nai.fl.32", true},
+//        {"obl:fl:64", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 64, "nai.fl.64", true},
+//        {"obl:fl:128", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 128, "nai.fl.128", true},
+//        {"obl:fl:256", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 256, "nai.fl.256", true},
+//        {"obl:fl:512", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 512, "obl.fl.512", true},
+        {"obl:fl:1024", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 1024, "obl.fl.1024", true,
+            50000},
+//        {"obl:fl:2048", matmul::oblivious_s_flip::multiply, matmul::oblivious_s_flip::build, 2048, "obl.fl.2048", true},
+//        {"obl_c:16", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 16, "16", false},
+//        {"obl_c:8", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 8, "8", false},
+//        {"obl_c:4", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 4, "4", false},
+//        {"obl_c:2", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 2, "2", false},
+//        {"obl_c:1", matmul::oblivious_c::multiply, matmul::oblivious_c::build, 1, "1", false},
     };
 
 algorithm_profile const *chosen;
@@ -163,7 +161,6 @@ pcm_hardware_counter pcm_hdw_counters[] = {
 //    {0x40, 0x49,            "TLB_L2C_2m",   "DTLB_STORE_MISSES.STLB_HIT_2M:Store misses that miss the  DTLB and hit the STLB (2M)."},
 };
 
-//PAPI_EINVAL
 int pcm_cnt = sizeof(pcm_hdw_counters) / sizeof(pcm_hdw_counters[0]);
 uint32 pcm_in_use = (uint32) std::min(pcm_cnt, 4);
 
