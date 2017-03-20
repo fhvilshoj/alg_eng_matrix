@@ -68,15 +68,13 @@ struct argument {
         {"input",      "i", "Sets the input query file. Multiple ones allowed.",                                                           1u, 128u, argument::string},
         {"output",     "o", "Sets the output file name. Defaults to 'result'. This argument is ignored if algorithm is set.",              1u, 2u,   argument::string, {}, {"result"}, {}},
         {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {2u}},
-        {"algorithm",  "a", "Sets the only algorithm to run. This is for isolated tests.",                                                 0u, 1u,   argument::string, {}, {},         {}},
         {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {5u}},
     };
 
 constexpr int ARG_INPUT = 0;
 constexpr int ARG_OUTPUT = 1;
 constexpr int ARG_REFRESH = 2;
-constexpr int ARG_ALGORITHM = 3;
-constexpr int ARG_ITERATIONS = 4;
+constexpr int ARG_ITERATIONS = 3;
 
 std::vector<std::string> files;
 std::string output;
@@ -164,13 +162,9 @@ std::string file_name_for_algorithm(algorithm_profile algorithm, std::string end
 
 void print_usage();
 
-void print_meassures();
-
 bool parse_arguments(int argc, char **argv);
 
 bool validate_arguments();
-
-void run_isolated_test(std::string const &dataset);
 
 void run_test(std::string const &dataset);
 
@@ -187,26 +181,20 @@ int main(int argc, char **argv) {
     if (!validate_arguments()) {
         return 2;
     }
-    if (chosen) {
-        print_meassures();
-        for (auto const &file : files) {
-            run_isolated_test(file);
-        }
-    } else {
-        std::string header = "";
-        for (unsigned i = 0; i < hdw_counters_cnt; i++) {
-            header += hdw_counters[i].short_description + " ";
-        }
-        header += "Time m";
-        for (auto const a : algorithms) {
-            std::ofstream result_file;
-            result_file.open(file_name_for_algorithm(a));
-            result_file << header << std::endl;
-            result_file.close();
-        }
-        for (auto const &file : files)
-            run_test(file);
+
+    std::string header = "";
+    for (unsigned i = 0; i < hdw_counters_cnt; i++) {
+        header += hdw_counters[i].short_description + " ";
     }
+    header += "Time m";
+    for (auto const a : algorithms) {
+        std::ofstream result_file;
+        result_file.open(file_name_for_algorithm(a));
+        result_file << header << std::endl;
+        result_file.close();
+    }
+    for (auto const &file : files)
+        run_test(file);
     return 0;
 }
 
@@ -226,13 +214,6 @@ void print_usage() {
         );
     for (auto const &a : arguments)
         fprintf(stderr, "(%s) %s\n    %s\n", a.abbreviation, a.name, a.description);
-}
-
-void print_meassures() {
-    for (int i = 0; i < hdw_counters_cnt; i++) {
-        std::cout << hdw_counters[i].short_description << " ";
-    }
-    std::cout << "filename" << std::endl;
 }
 
 bool parse_uint(char const *str, unsigned &result) {
@@ -326,7 +307,6 @@ bool parse_arguments(int argc, char **argv) {
     return true;
 }
 
-
 bool validate_arguments() {
     for (auto const &a : arguments) {
         unsigned n = a.bool_values.size() + a.string_values.size() + a.number_values.size();
@@ -343,19 +323,6 @@ bool validate_arguments() {
     output = arguments[ARG_OUTPUT].string_values.back();
     refresh_count = arguments[ARG_REFRESH].number_values.back();
     iteration_count = arguments[ARG_ITERATIONS].number_values.back();
-    if (arguments[ARG_ALGORITHM].string_values.size() != 0u) {
-        std::string const &chosen_name = arguments[ARG_ALGORITHM].string_values.front();
-        for (auto const &a : algorithms) {
-            if (a.name == chosen_name) {
-                chosen = &a;
-                break;
-            }
-        }
-        if (!chosen) {
-            fprintf(stderr, "Unknown algorithm: %s\n", chosen_name.c_str());
-            return false;
-        }
-    }
     if (refresh_count > 100000000u) {
         fputs("The number of extra queries must be at most 100000000.\n", stderr);
         return false;
@@ -365,78 +332,6 @@ bool validate_arguments() {
         return false;
     }
     return true;
-}
-
-void run_isolated_test(std::string const &dataset) {
-    FILE *fq = fopen(dataset.c_str(), "r");
-    helper::file_handler::layout_file matrices{fq};
-    fclose(fq);
-    if (!matrices.valid) {
-        fprintf(stderr, "Matrix file of %s is invalid.\n", dataset.c_str());
-        return;
-    }
-    long long counters[hdw_counters_cnt] = {};
-    long long stoppers[hdw_counters_cnt] = {};
-
-    int cnts[hdw_counters_cnt];
-    for (int i = 0; i < hdw_counters_cnt; i++) {
-        cnts[i] = hdw_counters[i].counter;
-    }
-
-    algorithm_profile::multiply_delegate mult = chosen->multiply;
-    int **dest;
-    helper::matrix::initialize_matrix(dest, matrices.layout_m, matrices.layout_p);
-    for (unsigned i = refresh_count; i; --i) {
-        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest, chosen->option);
-    }
-
-    for (unsigned i = iteration_count; i; --i) {
-        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-
-        int start_counters_res = PAPI_start_counters(cnts, 3);
-        if (start_counters_res != PAPI_OK)
-            std::cout << "Couldn't start counters" << start_counters_res << std::endl;
-
-        //Actual calculation
-        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest, chosen->option);
-
-        int accum_counters_res = PAPI_accum_counters(counters, 3);
-        if (accum_counters_res != PAPI_OK)
-            std::cout << "Couldn't accumulate counters" << accum_counters_res << std::endl;
-
-        int stop_counters_res = PAPI_stop_counters(stoppers, 3);
-        if (stop_counters_res != PAPI_OK)
-            std::cout << "Couldn't stop counters" << stop_counters_res << std::endl;
-    }
-    for (unsigned i = iteration_count; i; --i) {
-        std::memset(dest[0], 0, sizeof(int) * matrices.layout_m * matrices.layout_p);
-
-        int start_counters_res = PAPI_start_counters(cnts + 3, 3);
-        if (start_counters_res != PAPI_OK)
-            std::cout << "Couldn't start counters" << start_counters_res << std::endl;
-
-        //Actual calculation
-        mult((int const **) matrices.layoutA, (int const **) matrices.layoutB, matrices.layout_m, matrices.layout_n,
-             matrices.layout_p, dest, chosen->option);
-
-        int accum_counters_res = PAPI_accum_counters(counters + 3, 3);
-        if (accum_counters_res != PAPI_OK)
-            std::cout << "Couldn't accumulate counters" << accum_counters_res << std::endl;
-
-        int stop_counters_res = PAPI_stop_counters(stoppers, 3);
-        if (stop_counters_res != PAPI_OK)
-            std::cout << "Couldn't stop counters" << stop_counters_res << std::endl;
-    }
-    helper::matrix::destroy_matrix(dest);
-
-    // Print counter values
-    for (int i = 0; i < 6; i++) {
-        std::cout << counters[i] / iteration_count << " ";
-    }
-    std::cout << dataset << std::endl;
 }
 
 void run_test(std::string const &dataset) {

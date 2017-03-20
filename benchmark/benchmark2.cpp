@@ -70,7 +70,6 @@ struct argument {
         {"input",      "i", "Sets the input query file. Multiple ones allowed.",                                                           1u, 128u, argument::string},
         {"output",     "o", "Sets the output file name. Defaults to 'result'. This argument is ignored if algorithm is set.",              1u, 2u,   argument::string, {}, {"result"}, {}},
         {"refresh",    "r", "Sets the number of extra iterations to run before measuring the time. Defaults to 0, at most 1.000.000.000.", 1u, 2u,   argument::number, {}, {},         {1u}},
-        {"algorithm",  "a", "Sets the only algorithm to run. This is for isolated tests.",                                                 0u, 1u,   argument::string, {}, {},         {}},
         {"iterations", "l", "Sets the number of iterations to run when measuring the time. Defaults to 1000, at most 1.000.000.000.",      1u, 2u,   argument::number, {}, {},         {2u}},
         {"core",       "c", "Sets the execution core index",                                                                               0u, 4u,   argument::number, {}, {},         {4u}},
     };
@@ -78,9 +77,8 @@ struct argument {
 constexpr int ARG_INPUT = 0;
 constexpr int ARG_OUTPUT = 1;
 constexpr int ARG_REFRESH = 2;
-constexpr int ARG_ALGORITHM = 3;
-constexpr int ARG_ITERATIONS = 4;
-constexpr int ARG_CORE = 5;
+constexpr int ARG_ITERATIONS = 3;
+constexpr int ARG_CORE = 4;
 
 std::vector<std::string> files;
 std::string output;
@@ -179,8 +177,6 @@ bool validate_arguments();
 
 void run_test(std::string const &dataset, PCM *m);
 
-void call_gnuplot(algorithm_profile algorithm);
-
 EventSelectRegister regs[4];
 
 int main(int argc, char **argv) {
@@ -259,9 +255,6 @@ int main(int argc, char **argv) {
     std::cout << header << std::endl;
     for (auto const &file : files)
         run_test(file, m);
-//    for (auto const a : algorithms) {
-//        call_gnuplot(a);
-//    }
 
     return 0;
 }
@@ -400,19 +393,6 @@ bool validate_arguments() {
     refresh_count = arguments[ARG_REFRESH].number_values.back();
     iteration_count = arguments[ARG_ITERATIONS].number_values.back();
     core = arguments[ARG_CORE].number_values.back();
-    if (arguments[ARG_ALGORITHM].string_values.size() != 0u) {
-        std::string const &chosen_name = arguments[ARG_ALGORITHM].string_values.front();
-        for (auto const &a : algorithms) {
-            if (a.name == chosen_name) {
-                chosen = &a;
-                break;
-            }
-        }
-        if (!chosen) {
-            fprintf(stderr, "Unknown algorithm: %s\n", chosen_name.c_str());
-            return false;
-        }
-    }
     if (refresh_count > 100000000u) {
         fputs("The number of extra queries must be at most 100000000.\n", stderr);
         return false;
@@ -506,7 +486,6 @@ void run_test(std::string const &dataset, PCM *m) {
         l2_acc /= iteration_count;
         l3_acc /= iteration_count;
 
-
         for (uint32 i = 0; i < ncores; i++){
             for (uint32 j = 0; j < pcm_in_use; j++){
                 acc_counts[i][j] /= iteration_count;
@@ -547,25 +526,4 @@ void run_test(std::string const &dataset, PCM *m) {
 
     }
     helper::matrix::destroy_matrix(dest);
-}
-
-void call_gnuplot(algorithm_profile algorithm) {
-    constexpr unsigned algo_count = sizeof(algorithms) / sizeof(algorithms[0]);
-    std::string input_name = file_name_for_algorithm(algorithm);
-    std::string output_name = file_name_for_algorithm(algorithm, ".png");
-    FILE *fplot = fopen((output + ".gnuplot").c_str(), "w");
-    fprintf(fplot,
-            "set term png\n"
-                "set output '%s'\n"
-                "set ylabel 'counts' rotate by 90\n"
-                "set xlabel 'size of square matrix'\n"
-                "set key autotitle columnhead\n"
-                "set title 'Counts per multiplication'\n"
-                "set key left top\n"
-                "plot for [col=1:%d] '%s' using %d:col with linespoints\n",
-            output_name.c_str(), pcm_in_use, input_name.c_str(), pcm_in_use + 1);
-    fclose(fplot);
-    int gnuplot_ret = system(("gnuplot " + output + ".gnuplot").c_str());
-    if (gnuplot_ret)
-        fprintf(stderr, "Call to gnuplot failed with code %d.\n", gnuplot_ret);
 }
