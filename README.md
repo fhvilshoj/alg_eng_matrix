@@ -5,6 +5,19 @@ Engineering course at Aarhus University.
 It includes different includes implementations of 
 different alrogithms for multiplying matrices.
 
+##Algorithms
+
+We have implemented the following algorithms
+
+Algorithm | Description 
+--- | --- 
+**Naive**   | This algorithm is simply three simple for-loops iterating through the two matrices.
+**Naive:T** | This algorithm takes advantage of transposing B in A * B before multiplying the two to lower cache misses from $n^3$ to $\frac{n^3}{cache-line-size}$.
+**Obl**     | This algorithm uses a cache oblivious approach to lower the cache misses by keeping on recursing on smaller sub problems.
+**Obl:x**   | This algorithm uses the same recursion as **Obl** but stops when the problem size is below a threshold of size *x* where it switches to the **Naive** algorihm.
+**Obl:T:x** | This algorithm combines the benefits of **Naive:T** and **Obl:x** by transposing B and recursing until some threshold *x* and then switching to **Naive:T**.
+**Tile:x**  | This algorithm uses a tile based approach where it divides A and B into tiles that fits into cache and is thus a cache aware algorithm.
+
 ## Building
 
 To build the project make a folder called output 
