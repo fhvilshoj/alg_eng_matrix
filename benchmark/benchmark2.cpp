@@ -436,7 +436,7 @@ void run_test(std::string const &dataset, PCM *m) {
         algorithm_profile::build_delegate build = a.build;
         unsigned reps = B_flipped ? (equal_iter ? iteration_count : iteration_count + 1)
                                   : (equal_iter ? iteration_count + 1 : iteration_count);
-        unsigned c = core == 4 ? 0 : core;
+        unsigned c = core >= m->getNumCores() ? 0 : core;
         transpose_start = m->getTickCount(1000000, c); // measure in ms on core we are running on.
         for(unsigned i = 0; i < reps; i++) {
             B_flipped = build(matrices.layoutA, matrices.layoutB, matrices.layout_m, matrices.layout_n,
